@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>
+    {%- set pi = personal_info.profile if personal_info and personal_info.profile else {} -%}
+    {%- set full_name = [pi.name, pi.surname]|reject('equalto', None)|reject('equalto','')|join(' ') -%}
+    {{ full_name or 'Başar Temiz' }} — Resume
+  </title>
+
+  <link rel="stylesheet" href="templates/assets/bootstrap.min.css">
+  <link rel="stylesheet" href="templates/assets/harward.css">
+
+  <style>
+    @page { size: A4; margin: 15mm; }
+    html, body { height: 100%; }
+  </style>
+</head>
+<body>
+
+<main class="page container-fluid">
+
+  <!-- Header -->
+  <header class="resume-header">
+    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-end gap-2">
+      <div>
+        <h1 class="m-0 fw-bold">{{ full_name or 'Başar Temiz' }}</h1>
+        {% if pi.position %}<div class="subtitle text-muted">{{ pi.position }}</div>{% endif %}
+      </div>
+
+      {# Contacts from personal_info.profile #}
+      {% set acc = pi.accounts or {} %}
+      {% if acc.email or pi.phone_number or acc.github or acc.linkedin %}
+      <ul class="contact list-inline m-0 small text-muted">
+        {% if acc.email %}<li class="list-inline-item">{{ acc.email }}</li>{% endif %}
+        {% if pi.phone_number %}<li class="list-inline-item">{{ pi.phone_number }}</li>{% endif %}
+        {% if acc.github %}<li class="list-inline-item">{{ acc.github }}</li>{% endif %}
+        {% if acc.linkedin %}<li class="list-inline-item">{{ acc.linkedin }}</li>{% endif %}
+      </ul>
+      {% endif %}
+    </div>
+  </header>
+
+  <!-- Profile (uses top-level 'profile' string) -->
+  {% if profile %}
+  <section class="resume-section no-break">
+    <h2 class="section-title">Profile</h2>
+    <p class="mb-0">{{ profile }}</p>
+  </section>
+  {% endif %}
+
+  <!-- Education (education.education[]) -->
+  {% if education and education.education %}
+  <section class="resume-section no-break">
+    <h2 class="section-title">Education</h2>
+    {% for ed in education.education %}
+      <div class="item">
+        <div class="item-header">
+          <div class="item-left fw-semibold">{{ ed.education }}</div>
+          <div class="item-right text-muted">{{ ed.date }}</div>
+        </div>
+        {% if ed.description %}
+        <ul class="bullets">
+          <li>{{ ed.description }}</li>
+        </ul>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </section>
+  {% endif %}
+
+  <!-- Experience (experience.experience[]) -->
+  {% if experience and experience.experience %}
+  <section class="resume-section no-break">
+    <h2 class="section-title">Experience</h2>
+    {% for ex in experience.experience %}
+      <div class="item">
+        <div class="item-header">
+          <div class="item-left fw-semibold">{{ ex.position_or_company }}</div>
+          <div class="item-right text-muted">{{ ex.date }}</div>
+        </div>
+        {% if ex.description %}
+        <ul class="bullets">
+          <li>{{ ex.description }}</li>
+        </ul>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </section>
+  {% endif %}
+
+  <!-- Skills (skills.skills[] with category/items/explanation) -->
+  {% if skills and skills.skills %}
+  <section class="resume-section no-break">
+    <h2 class="section-title">Skills</h2>
+    {% for sec in skills.skills %}
+      {% if sec.category %}<div class="fw-semibold">{{ sec.category }}</div>{% endif %}
+      {% if sec.skills and sec.skills|length > 0 %}
+      <ul class="pill-list">
+        {% for it in sec.skills %}<li class="pill">{{ it }}</li>{% endfor %}
+      </ul>
+      {% endif %}
+      {% if sec.explanation %}<div class="muted-line mt-1">{{ sec.explanation }}</div>{% endif %}
+      {% if not loop.last %}<div class="mb-1"></div>{% endif %}
+    {% endfor %}
+  </section>
+  {% endif %}
+
+  <!-- References (references.references[]) -->
+  {% if references and references.references %}
+  <section class="resume-section no-break">
+    <h2 class="section-title">References</h2>
+    <ul class="bullets">
+      {% for ref in references.references %}
+        <li>
+          <strong>{{ ref.name }}</strong>
+          {% if ref.relationship_or_title %} — {{ ref.relationship_or_title }}{% endif %}
+          {% if ref.contact %} — <a href="mailto:{{ ref.contact }}">{{ ref.contact }}</a>{% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+</main>
+
+</body>
+</html>

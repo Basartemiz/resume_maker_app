@@ -1,0 +1,88 @@
+{
+  "skills": {
+    "skills": [
+      {
+        "category": "Technical",
+        "skills": ["Python", "Docker", "React", "Django", "LangChain", "Machine Learning"],
+        "explanation": "Proficient in developing scalable software systems and implementing machine learning solutions."
+      },
+      {
+        "category": "Analytical",
+        "skills": ["Data Analysis", "Depth Estimation", "Generative AI"],
+        "explanation": "Experienced in analyzing data and developing AI tools for real-world applications."
+      },
+      {
+        "category": "Soft",
+        "skills": ["Teamwork", "Communication"],
+        "explanation": "Strong collaboration and communication skills developed through internships and project leadership."
+      },
+      {
+        "category": "Creative",
+        "skills": ["System Architecture Design"],
+        "explanation": "Skilled in designing clean and maintainable software architectures."
+      }
+    ]
+  },
+  "education": {
+    "education": [
+      {
+        "date": "2020–2024",
+        "education": "Bachelor's Degree in Computer Engineering at Boğaziçi University",
+        "description": "Collaborated on research involving depth estimation and generative AI."
+      },
+      {
+        "date": "2021",
+        "education": "Machine Learning Course on Coursera",
+        "description": "Completed a foundational course on supervised and unsupervised learning methods."
+      },
+      {
+        "date": "2022",
+        "education": "Advanced Python Programming on edX",
+        "description": "Completed a course focusing on advanced concepts in Python programming."
+      }
+    ]
+  },
+  "experience": {
+    "experience": [
+      {
+        "date": "2023–Present",
+        "position_or_company": "Software Engineer Intern at Baykar",
+        "description": "Contributed to the development of UAV software systems and collaborated with cross-functional teams to enhance system performance."
+      },
+      {
+        "date": "2021–2022",
+        "position_or_company": "Research Assistant at Boğaziçi University",
+        "description": "Assisted in research involving depth estimation and generative AI."
+      }
+    ]
+  },
+  "references": {
+    "references": [
+      {
+        "name": "Dr. Ayşe Yılmaz",
+        "relationship_or_title": "Academic Advisor, Boğaziçi University",
+        "contact": "ayse.yilmaz@bogazici.edu.tr"
+      },
+      {
+        "name": "Mr. Mehmet Kara",
+        "relationship_or_title": "Software Engineering Supervisor, Baykar",
+        "contact": "mehmet.kara@baykar.com"
+      }
+    ]
+  },
+  "personal_info": {
+    "profile": {
+      "name": "Başar",
+      "surname": "Temiz",
+      "position": "Computer Engineer",
+      "description": "Computer engineer specializing in artificial intelligence, scalable software systems, and data-driven development.",
+      "phone_number": "+90 535 745 09 33",
+      "accounts": {
+        "email": "basar.temiz2004@gmail.com",
+        "github": "github.com/Basartemiz",
+        "linkedin": "linkedin.com/in/basartemiz"
+      }
+    }
+  },
+  "profile": "Başar Temiz is a computer engineer with expertise in artificial intelligence, data analysis, and scalable software systems. He has developed a range of projects that integrate back-end engineering with machine learning, including Django applications and tools for 3D reconstruction utilizing NeRF and satellite imagery. With a strong educational foundation from Boğaziçi University and practical experience in technologies such as Python, Docker, and React, Başar aims to create impactful solutions that enhance user interaction with data while valuing teamwork and clear communication."
+}

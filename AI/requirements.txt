@@ -1,0 +1,6 @@
+python-dotenv
+openai>=1.0.0
+langgraph
+typing_extensions
+weasyprint
+jinja2
