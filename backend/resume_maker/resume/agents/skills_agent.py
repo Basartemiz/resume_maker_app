@@ -4,7 +4,7 @@ from langgraph.graph import StateGraph, START, END
 from openai import OpenAI
 from typing_extensions import TypedDict
 
-#some variables
+# Agent for extracting skills from user input
 
 
 
@@ -56,36 +56,55 @@ def get_skills(state: State) -> dict:
 
     # Define a structured and concise system prompt
     system_prompt = (
-    "You are an assistant specialized in summarizing professional skill sets. "
-    "Given the available user information, identify the user's main skills and return them "
-    "as a JSON object in the following format:\n\n"
+    "You are an expert information extraction specialist focused on identifying professional skills "
+    "from unstructured text. Your goal is to extract and categorize skills with high precision.\n\n"
+
+    "## EXTRACTION PROCESS\n"
+    "1. Scan for explicit skill mentions: technologies, programming languages, frameworks, tools\n"
+    "2. Identify implied skills from: project descriptions, job responsibilities, achievements\n"
+    "3. Look for soft skills indicators: 'led', 'collaborated', 'communicated', 'managed', 'organized'\n"
+    "4. Recognize domain expertise: data analysis, machine learning, web development, etc.\n"
+    "5. Note proficiency indicators if mentioned: 'expert in', 'proficient with', 'familiar with'\n"
+    "6. Group related skills into logical categories\n\n"
+
+    "## OUTPUT FORMAT\n"
+    "Return ONLY a valid JSON object:\n"
     "{\n"
     '  "skills": [\n'
     "    {\n"
-    '      "category": "Technical",\n'
-    '      "skills": ["Python", "Docker", "React"],\n'
-    '      "explanation": "Proficient in backend and full-stack software development."\n'
-    "    },\n"
-    "    {\n"
-    '      "category": "Soft",\n'
-    '      "skills": ["Communication", "Teamwork"],\n'
-    '      "explanation": "Strong collaboration and communication skills gained from internships and team projects."\n'
+    '      "category": "<Technical|Soft|Analytical|Domain|Tools|Languages>",\n'
+    '      "skills": ["<skill1>", "<skill2>", ...],\n'
+    '      "explanation": "<first-person context on how these skills were demonstrated or acquired>"\n'
     "    }\n"
     "  ]\n"
     "}\n\n"
-    "Rules:\n"
-    "- Always return a valid JSON object.\n"
-    "- The root key must be 'skills'.\n"
-    "- Each skill group must include 'category', 'skills', and 'explanation'.\n"
-    "- Group similar skills together in one list under 'skills'.\n"
-    "- Categories can include 'Technical', 'Soft', 'Analytical', 'Creative', etc.\n"
-    "- Keep explanations factual and concise (1 sentence each).\n"
-    "- do not give information about the user if not available.\n"
-    "- Do not include markdown, commentary, or placeholders like 'unknown'."
+
+    "## SKILL CATEGORIES\n"
+    "- Technical: Programming languages, frameworks, libraries (Python, React, Django, etc.)\n"
+    "- Tools: Software tools, platforms, DevOps (Docker, Git, AWS, etc.)\n"
+    "- Analytical: Data analysis, problem-solving, research methods\n"
+    "- Soft: Communication, leadership, teamwork, project management\n"
+    "- Domain: Industry-specific expertise (AI/ML, finance, healthcare, etc.)\n"
+    "- Languages: Spoken/written languages if mentioned\n\n"
+
+    "## STRICT RULES\n"
+    "- ALWAYS write explanations in FIRST PERSON (e.g., 'I developed...', 'I have experience with...', 'I demonstrated...')\n"
+    "- NEVER use third person (e.g., 'He/She has skills in...', 'The candidate knows...')\n"
+    "- ONLY extract skills that are explicitly mentioned OR clearly demonstrated through described work\n"
+    "- NEVER invent skills not supported by the text\n"
+    "- NEVER use example skills from this prompt - extract ONLY from provided text\n"
+    "- Group skills logically - don't create a category with only one skill unless necessary\n"
+    "- Keep explanations tied to evidence from the text\n"
+    "- If NO skills can be identified from the text, return: {\"skills\": []}\n"
+    "- Output must be valid JSON with no markdown, code blocks, or extra commentary\n"
 )
 
     # Extract user context for the LLM
-    user_prompt = f"Here is the information you have about {name}: {state.get('context', '')}"
+    user_prompt = (
+        f"Extract and categorize all professional skills from this text. "
+        f"Include both explicitly mentioned skills and skills clearly demonstrated through described work:\n\n"
+        f"---TEXT START---\n{state.get('context', '')}\n---TEXT END---"
+    )
 
     # Call your LLM wrapper
     msg = invoke(system_prompt=system_prompt, user_prompt=user_prompt)

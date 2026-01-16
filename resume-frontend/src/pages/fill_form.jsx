@@ -1,10 +1,36 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import nunjucks from "nunjucks";
-import userData from "/src/media/user.json";
 import SidebarLayout from "../components/sidebar";
 import StudioSplitPane from "../components/Studio";
 import ResumeLocalEditor from "../components/local_editor";
+import { fetchResumeData, saveResumeData, generatePdfFromJson } from "../services/api";
 import "./fill_form.css";
+
+// Empty default data structure - actual data comes from backend
+const emptyData = () => ({
+  name: "",
+  title: "",
+  contacts: {
+    email: "",
+    phone: "",
+    github: "",
+    linkedin: "",
+    location: null,
+  },
+  profile: {
+    job_title: "",
+    highest_degree: null,
+    key_skills: [],
+    summary: "",
+  },
+  skills: {
+    sections: [],
+  },
+  education: [],
+  experience: [],
+  references: [],
+  custom_sections: [],
+});
 
 /* Build-time (Vite) */
 const htmlFiles = import.meta.glob("/src/templates/**/*.html", { as: "raw", eager: true });
@@ -12,6 +38,21 @@ const cssFiles  = import.meta.glob("/src/templates/**/*.css",  { as: "raw", eage
 
 const LS_DATA  = "resume_json_v1";
 const LS_ORDER = "resume_section_order_v1";
+const MAX_WORDS = 10000;
+
+const countWords = (obj) => {
+  if (!obj) return 0;
+  if (typeof obj === 'string') {
+    return obj.trim().split(/\s+/).filter(w => w.length > 0).length;
+  }
+  if (Array.isArray(obj)) {
+    return obj.reduce((sum, item) => sum + countWords(item), 0);
+  }
+  if (typeof obj === 'object') {
+    return Object.values(obj).reduce((sum, val) => sum + countWords(val), 0);
+  }
+  return 0;
+};
 
 function baseName(p) {
   return p.split("/").pop().replace(/\.[^.]+$/, "");
@@ -37,12 +78,31 @@ function safeParse(json) {
 export default function TemplateStudio() {
   const [selectedKey, setSelectedKey] = useState(templatesList[0]?.key || null);
   const iframeRef = useRef(null);
+  const [saving, setSaving] = useState(false);
+  const [loadingData, setLoadingData] = useState(true);
 
   // Load JSON data (resume info)
   const [data, setData] = useState(() => {
     const fromLS = safeParse(localStorage.getItem(LS_DATA));
-    return fromLS ?? userData;
+    return fromLS ?? emptyData();
   });
+
+  // Fetch data from API on mount
+  useEffect(() => {
+    async function loadFromApi() {
+      try {
+        const apiData = await fetchResumeData();
+        if (apiData) {
+          setData(apiData);
+          localStorage.setItem(LS_DATA, JSON.stringify(apiData));
+        }
+      } catch (err) {
+        console.error("Failed to fetch resume data:", err);
+      }
+      setLoadingData(false);
+    }
+    loadFromApi();
+  }, []);
 
   // Load order list
   const [order, setOrder] = useState(() =>
@@ -85,7 +145,7 @@ export default function TemplateStudio() {
       if (newData !== prevData) {
         prevData = newData;
         const parsed = safeParse(newData);
-        setData(parsed ?? userData);
+        setData(parsed ?? emptyData());
       }
 
       if (newOrder !== prevOrder) {
@@ -187,10 +247,21 @@ function normalizeOrder(latestData, latestOrder) {
 }
 
 
-  // ------- NEW: Save & Apply handler -------
-const handleSaveAndApply = () => {
+  // ------- Save & Apply handler -------
+const handleSaveAndApply = async () => {
   // Load latest from localStorage (editor already writes there)
-  const latestData  = safeParse(localStorage.getItem(LS_DATA))  ?? userData;
+  const latestData  = safeParse(localStorage.getItem(LS_DATA))  ?? emptyData();
+
+  // Check word limit
+  const words = countWords(latestData);
+  if (words > MAX_WORDS) {
+    setAppliedMsg(`Over ${MAX_WORDS.toLocaleString()} word limit!`);
+    window.setTimeout(() => setAppliedMsg(""), 3000);
+    return;
+  }
+
+  setSaving(true);
+
   const latestOrderRaw = safeParse(localStorage.getItem(LS_ORDER)) ?? [
     "profile", "skills", "education", "experience", "references"
   ];
@@ -201,13 +272,48 @@ const handleSaveAndApply = () => {
   // Persist normalized order so everything stays in sync
   localStorage.setItem(LS_ORDER, JSON.stringify(normalizedOrder));
 
+  // Save to API
+  try {
+    await saveResumeData(latestData);
+    setAppliedMsg("Saved ✓");
+  } catch (err) {
+    console.error("Failed to save:", err);
+    setAppliedMsg("Save failed");
+  }
+
   // Update state -> re-renders iframe immediately via ctx
   setData(latestData);
   setOrder(normalizedOrder);
 
-  // Tiny success ping
-  setAppliedMsg("Applied ✓");
-  window.setTimeout(() => setAppliedMsg(""), 1000);
+  setSaving(false);
+  window.setTimeout(() => setAppliedMsg(""), 2000);
+};
+
+// Download PDF handler
+const handleDownloadPdf = async () => {
+  setSaving(true);
+  setAppliedMsg("Generating PDF...");
+
+  try {
+    const blob = await generatePdfFromJson(data, selectedKey);
+    if (blob) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'resume.pdf';
+      a.click();
+      URL.revokeObjectURL(url);
+      setAppliedMsg("Downloaded ✓");
+    } else {
+      setAppliedMsg("PDF generation failed");
+    }
+  } catch (err) {
+    console.error("PDF error:", err);
+    setAppliedMsg("PDF error");
+  }
+
+  setSaving(false);
+  window.setTimeout(() => setAppliedMsg(""), 2000);
 };
 
 
@@ -227,9 +333,19 @@ const handleSaveAndApply = () => {
             type="button"
             className="btn btn-primary btn-sm"
             onClick={handleSaveAndApply}
+            disabled={saving}
             title="Save data and re-render the selected template"
           >
-            Save & Apply
+            {saving ? 'Saving...' : 'Save & Apply'}
+          </button>
+          <button
+            type="button"
+            className="btn btn-success btn-sm"
+            onClick={handleDownloadPdf}
+            disabled={saving}
+            title="Download as PDF"
+          >
+            Download PDF
           </button>
           {appliedMsg && <span className="small text-success">{appliedMsg}</span>}
         </div>

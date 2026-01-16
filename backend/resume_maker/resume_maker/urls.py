@@ -15,20 +15,32 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path
-from django.urls import include
-from django.urls import path
+from django.urls import path, include
+from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
 )
 
+
+# Custom token views with explicit AllowAny permission
+class PublicTokenObtainPairView(TokenObtainPairView):
+    """Login endpoint - public access allowed."""
+    permission_classes = [AllowAny]
+
+
+class PublicTokenRefreshView(TokenRefreshView):
+    """Token refresh endpoint - public access allowed."""
+    permission_classes = [AllowAny]
+
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('resume/', include('resume.urls')),
 
-    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-    
+    # Public authentication endpoints
+    path('api/token/', PublicTokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/token/refresh/', PublicTokenRefreshView.as_view(), name='token_refresh'),
+
     path('register/', include('register.urls')),
 ]

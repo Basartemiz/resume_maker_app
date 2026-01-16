@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>{{ name | default('Başar Temiz') }} — Resume</title>
+  <title>{{ name | default('Your Name') }} — Resume</title>
   <style>
     html, body { height: 100%; }
     body { margin: 16px; padding: 16px; background: #fff; box-sizing: border-box; }
@@ -154,7 +154,7 @@
   <header class="resume-header">
     <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-end gap-2">
       <div>
-        <h1 class="m-0 fw-bold">{{ name | default('Başar Temiz') }}</h1>
+        <h1 class="m-0 fw-bold">{{ name | default('Your Name') }}</h1>
         {% set subtitle = title or (profile and profile.job_title) %}
         {% if subtitle %}
           <div class="subtitle text-muted">{{ subtitle }}</div>

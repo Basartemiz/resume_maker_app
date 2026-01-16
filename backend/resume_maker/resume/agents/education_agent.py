@@ -4,12 +4,7 @@ from langgraph.graph import StateGraph, START, END
 from openai import OpenAI
 from typing_extensions import TypedDict
 
-#some variables
-input_of_user="""
-I’m Başar Temiz, a computer engineer with a strong passion for artificial intelligence, data analysis, and scalable software systems. Over the past few years, I’ve built and deployed several projects that combine back-end engineering with machine learning — from Django web applications and agentic AI tools to 3D reconstruction pipelines using NeRF and satellite imagery. I enjoy designing clean, maintainable architectures and have practical experience with technologies like Python, Docker, React, and LangChain. I earned my bachelor’s degree in Computer Engineering from Boğaziçi University, where I also collaborated on research involving depth estimation and generative AI. Beyond technical skills, I value teamwork and clarity — I’ve led small development groups, documented complex workflows, and communicated results effectively. My goal is to contribute to projects where intelligent systems meet real-world impact, creating tools that help people understand and shape data more intuitively.
-
-You can reach me via LinkedIn at linkedin.com/in/basartemiz, explore my projects on github.com/Basartemiz, or contact me directly at basar.temiz2004@gmail.com or +90 535 745 09 33.
-"""
+# Agent for extracting education information from user input
 
 
 class State(TypedDict):
@@ -61,39 +56,51 @@ def get_education(state: State) -> dict:
 
     # Define system prompt to enforce structured, consistent output
     system_prompt = (
-    "You are an assistant specialized in writing structured academic backgrounds. "
-    "Given the available user information, identify and return their main education details "
-    "as a JSON object ONLY (no markdown, no commentary, no extra text) with this structure:\n\n"
+    "You are an expert information extraction specialist focused on identifying educational background "
+    "from unstructured text. Your goal is to extract academic history with high precision.\n\n"
+
+    "## EXTRACTION PROCESS\n"
+    "1. Scan for educational keywords: 'degree', 'bachelor', 'master', 'PhD', 'studied', 'graduated', "
+    "'university', 'college', 'school', 'major', 'minor', 'GPA', 'honors'\n"
+    "2. Look for institution names (universities, colleges, schools)\n"
+    "3. Identify fields of study, majors, specializations, or concentrations\n"
+    "4. Extract dates: graduation year, enrollment period, expected graduation\n"
+    "5. Note any academic achievements, thesis topics, or research areas mentioned\n"
+    "6. Order education chronologically (most recent first)\n\n"
+
+    "## OUTPUT FORMAT\n"
+    "Return ONLY a valid JSON object:\n"
     "{\n"
     '  "education": [\n'
     "    {\n"
-    '      "date": "2020–2024",\n'
-    '      "education": "Bachelor\'s Degree in Computer Engineering at Boğaziçi University",\n'
-    '      "description": "Focused on software systems, AI, and depth estimation research."\n'
-    "    },\n"
-    "    {\n"
-    '      "date": "2021",\n'
-    '      "education": "Machine Learning Course on Coursera",\n'
-    '      "description": "Completed a foundational course on supervised and unsupervised learning methods."\n'
+    '      "date": "<start year – end year, or single year, or Expected YYYY>",\n'
+    '      "education": "<Degree Type in Field at Institution Name>",\n'
+    '      "description": "<first-person description of focus areas, achievements, or research topics>"\n'
     "    }\n"
     "  ]\n"
     "}\n\n"
-    "Rules:\n"
-    "- Always return a valid JSON object and nothing else.\n"
-    "- Never fabricate education details; only use information provided.\n"
-    "If the users education is still ongoing, reflect that accurately.\n"
-    "- The root key must be 'education'.\n"
-    "- Each entry must include 'date', 'education', and 'description'.\n"
-    "- Use realistic date ranges (e.g., '2020–2024', '2022', '2018–2020').\n"
-    "- Each description must be one concise factual sentence (no commentary or opinion).\n"
-    "- Do not include placeholders like 'unknown' or 'N/A'.\n"
-    "- If no education information is available, return:\n"
-    "{ \"education\": [{ \"message\": \"No academic background details could be generated.\" }] }"
+
+    "## STRICT RULES\n"
+    "- ALWAYS write descriptions in FIRST PERSON (e.g., 'I focused on...', 'I researched...', 'I achieved...')\n"
+    "- NEVER use third person (e.g., 'He/She studied...', 'The student focused on...')\n"
+    "- NEVER fabricate, assume, or hallucinate education details not in the source text\n"
+    "- NEVER use example data from this prompt - extract ONLY from provided text\n"
+    "- If education is ongoing, use 'Present' or 'Expected YYYY' for the end date\n"
+    "- Include ONLY formal education (degrees, diplomas) - NOT courses/certifications (those go elsewhere)\n"
+    "- If only an institution is mentioned without degree details, include what's available\n"
+    "- For 'description': include ONLY explicitly mentioned focus areas, research, or achievements\n"
+    "- If description would require guessing, leave it as a brief factual statement or empty\n"
+    "- If NO education information is found in the text, return: {\"education\": []}\n"
+    "- Output must be valid JSON with no markdown, code blocks, or extra commentary\n"
 )
 
 
     # Extract user context for the LLM
-    user_prompt = f"Here is the information you have about {name}: {state.get('context', '')}"
+    user_prompt = (
+        f"Extract all formal education (degrees, diplomas, academic programs) from this text. "
+        f"Include ONLY educational background that is explicitly mentioned:\n\n"
+        f"---TEXT START---\n{state.get('context', '')}\n---TEXT END---"
+    )
 
     # Invoke the LLM to generate education info
     msg = invoke(system_prompt=system_prompt, user_prompt=user_prompt)

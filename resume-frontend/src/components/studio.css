@@ -2,6 +2,10 @@
   --studio-radius: 16px;
   --studio-shadow: 0 10px 30px rgba(15, 23, 42, 0.10);
   --studio-border: rgba(15, 23, 42, 0.10);
+  --studio-transition: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  max-width: 100%;
+  overflow-x: hidden;
+  box-sizing: border-box;
 }
 
 .studio-toolbar {
@@ -11,6 +15,8 @@
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(248, 250, 252, 0.86));
   backdrop-filter: blur(10px);
   box-shadow: var(--studio-shadow);
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .studio-chip {
@@ -84,25 +90,112 @@
   position: relative;
   overflow: hidden;
   padding: 12px;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .studio-card {
   border-radius: calc(var(--studio-radius) - 2px);
   overflow: hidden;
+  max-width: 100%;
+  width: 100%;
+}
+
+/* Main editor body container */
+.studio-editor-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden !important;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  scroll-behavior: smooth;
+  touch-action: pan-y;
+  width: 100%;
+  max-width: 100%;
+}
+
+/* Enable smooth touch/trackpad scrolling for editor */
+.studio-card > .card-body {
+  overflow-y: auto;
+  overflow-x: hidden !important;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  scroll-behavior: smooth;
+  /* Ensure touch events work on trackpad/touchbar */
+  touch-action: pan-y;
+  /* Prevent horizontal overflow */
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Scrollbar styling */
+.studio-card .card-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.studio-card .card-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.studio-card .card-body::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.15);
+  border-radius: 3px;
+  transition: background 150ms ease;
+}
+
+.studio-card .card-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(15, 23, 42, 0.3);
+}
+
+/* Editor header fixes - prevent overflow */
+.studio-card .card-header {
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.studio-card .card-header strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 200px;
 }
 
 .studio-pane {
   position: absolute;
   inset: 12px;
   opacity: 0;
-  transform: translateY(4px);
+  transform: translateY(6px) scale(0.99);
   pointer-events: none;
-  transition: opacity 180ms ease, transform 180ms ease;
+  transition: opacity var(--studio-transition), transform var(--studio-transition);
+  will-change: opacity, transform;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Force containers to respect width */
+.studio-card .card-body .container-fluid,
+.studio-card .card-body .card,
+.studio-card .card-body .card-body,
+.studio-card .card-body .card-header {
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* Text elements should wrap or truncate */
+.studio-card .card-body strong,
+.studio-card .card-body span,
+.studio-card .card-body label {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .studio-pane.is-active {
   opacity: 1;
-  transform: translateY(0);
+  transform: translateY(0) scale(1);
   pointer-events: auto;
 }
 
@@ -112,6 +205,248 @@
   }
   .studio-subtitle {
     display: none;
+  }
+}
+
+/* ====== Editor-specific improvements ====== */
+
+/* Editor root */
+.editor-root {
+  padding: 20px;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+.editor-root * {
+  box-sizing: border-box;
+}
+
+.editor-root .card {
+  width: 100%;
+  max-width: 100%;
+}
+
+.editor-root .card-header,
+.editor-root .card-body {
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.editor-root .card > .card-body {
+  padding: 16px 20px;
+}
+
+/* Editor header */
+.editor-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 8px;
+}
+
+.editor-header-top {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+.editor-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #0f172a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.editor-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* Editor section cards */
+.editor-section-card {
+  border-radius: 12px;
+  overflow: hidden;
+  transition: box-shadow var(--studio-transition);
+  max-width: 100%;
+  margin-bottom: 16px;
+}
+
+.editor-section-card:hover {
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.1);
+}
+
+.editor-section-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 12px;
+  padding: 14px 20px;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.editor-section-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  font-size: 0.95rem;
+  flex: 1;
+  max-width: calc(100% - 40px);
+}
+
+/* Order items */
+.order-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: nowrap;
+  gap: 10px;
+  padding: 10px 14px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+  background: #f8fafc;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  transition: all 150ms ease;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.order-item:last-child {
+  margin-bottom: 0;
+}
+
+.order-item:hover {
+  background: #f1f5f9;
+  border-color: rgba(99, 102, 241, 0.2);
+}
+
+.order-item-info {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+.order-item-label {
+  font-weight: 500;
+  font-size: 0.875rem;
+  color: #1e293b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 1;
+  max-width: calc(100% - 40px);
+}
+
+.order-item-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.order-item-actions .btn {
+  padding: 2px 8px;
+  font-size: 0.75rem;
+}
+
+
+/* Buttons and badges */
+.studio-card .card-body .btn {
+  transition: all 150ms ease;
+  flex-shrink: 0;
+}
+
+.studio-card .card-body .badge {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* Form controls */
+.studio-card .card-body .form-control {
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.studio-card .card-body .form-control:focus {
+  border-color: rgba(99, 102, 241, 0.5);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+/* Border items (section order, skill items, etc) */
+.studio-card .card-body .border.rounded-3 {
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+
+.studio-card .card-body .border.rounded-3:hover {
+  background-color: rgba(248, 250, 252, 1) !important;
+  border-color: rgba(99, 102, 241, 0.2) !important;
+}
+
+/* Alert animations */
+.studio-card .card-body .alert {
+  animation: alertSlideIn 200ms ease-out;
+}
+
+@keyframes alertSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive adjustments for editor */
+@media (max-width: 767.98px) {
+  .editor-root {
+    padding: 12px;
+  }
+
+  .editor-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .editor-header-top {
+    justify-content: space-between;
+  }
+
+  .editor-title {
+    font-size: 0.9rem;
+  }
+
+  .editor-header-actions {
+    justify-content: flex-end;
+    margin-top: 4px;
+  }
+
+  .editor-section-label {
+    max-width: 150px;
+  }
+
+  .order-item-label {
+    max-width: 120px;
   }
 }
 

@@ -1,0 +1,40 @@
+name: resume-app
+
+services:
+  - name: backend
+    source_dir: /backend/resume_maker
+    dockerfile_path: dockerfile
+    http_port: 8000
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    run_command: python manage.py migrate && gunicorn resume_maker.wsgi:application --bind 0.0.0.0:8000
+    routes:
+      - path: /api
+      - path: /resume
+      - path: /register
+      - path: /admin
+    envs:
+      - key: DJANGO_ALLOWED_HOSTS
+        value: ${APP_DOMAIN}
+      - key: DEBUG
+        value: "False"
+      - key: SECRET_KEY
+        scope: RUN_TIME
+        type: SECRET
+      - key: DATABASE_URL
+        scope: RUN_TIME
+        type: SECRET
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://${APP_DOMAIN}
+
+static_sites:
+  - name: frontend
+    source_dir: /resume-frontend
+    build_command: npm ci && npm run build
+    output_dir: dist
+    routes:
+      - path: /
+    catchall_document: index.html
+    envs:
+      - key: VITE_API_URL
+        value: https://${APP_DOMAIN}

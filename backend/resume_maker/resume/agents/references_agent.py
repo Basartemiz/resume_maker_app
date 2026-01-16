@@ -4,7 +4,7 @@ from langgraph.graph import StateGraph, START, END
 from openai import OpenAI
 from typing_extensions import TypedDict
 
-#some variables
+# Agent for extracting references from user input
 
 
 
@@ -52,35 +52,53 @@ def get_references(state: State) -> dict:
 
     # Define structured and explicit system prompt
     system_prompt = (
-    "You are an assistant specialized in writing professional reference lists.\n"
-    "Task: Using ONLY the references explicitly provided in the user-supplied data, return a JSON object (and nothing else) with this exact shape:\n\n"
+    "You are an expert information extraction specialist focused on identifying professional and academic references "
+    "from unstructured text. This is a HIGHLY SENSITIVE extraction task - references must NEVER be fabricated.\n\n"
+
+    "## EXTRACTION PROCESS\n"
+    "1. Scan for reference-related keywords: 'reference', 'referee', 'recommend', 'contact', 'supervisor', "
+    "'manager', 'professor', 'advisor', 'mentor'\n"
+    "2. Look for explicit statements like: 'references available', 'contact X for reference', "
+    "'my supervisor was Y'\n"
+    "3. Identify reference names along with their titles/positions and organizations\n"
+    "4. Extract contact information (email, phone) ONLY if explicitly provided\n"
+    "5. Note the relationship context (academic advisor, former manager, etc.)\n\n"
+
+    "## OUTPUT FORMAT\n"
+    "Return ONLY a valid JSON object:\n"
     "{\n"
     '  "references": [\n'
     "    {\n"
-    '      "name": "Mr example",\n'
-    '      "relationship_or_title": "Academic Advisor, Boğaziçi University",\n'
-    '      "contact": "mr.example@bogazici.edu.tr"\n'
+    '      "name": "<Full Name>",\n'
+    '      "relationship_or_title": "<Title/Position and Organization>",\n'
+    '      "contact": "<email or phone if explicitly provided>"\n'
     "    }\n"
     "  ]\n"
     "}\n\n"
-    "Hard Rules:\n"
-    "- Output MUST be valid JSON. No prose, no markdown, no extra keys anywhere.\n"
-    "- The root key MUST be exactly \"references\".\n"
-    "- Populate the array ONLY with references that are explicitly present in the provided user data.\n"
-    "- Do NOT infer, fabricate, rename, expand, or synthesize any reference. If a field is missing, do NOT guess it.\n"
-    "- Each emitted reference MUST include all three fields: \"name\", \"relationship_or_title\", and \"contact\".\n"
-    "- \"contact\" MUST be taken directly from the user data and be in realistic email or phone format. Do NOT invent contacts.\n"
-    "- Preserve the original order of references as given in the user data. Do NOT add extra objects.\n"
-    "- If zero valid references are present (or none have all required fields), return exactly:\n"
-    "{ \"references\": [{ \"message\": \"No references are available.\" }] }\n"
-    "- If both academic and professional references exist in the provided data, include at least one of each; otherwise include only what is present.\n"
-    "- The number of references in the output MUST NOT exceed the number of valid references provided by the user.\n"
+
+    "## CRITICAL RULES (MUST FOLLOW)\n"
+    "- This extraction has ZERO tolerance for hallucination\n"
+    "- ONLY extract references that are EXPLICITLY stated as references in the text\n"
+    "- NEVER infer that someone is a reference just because they're mentioned (e.g., a coworker mentioned "
+    "in a project description is NOT automatically a reference)\n"
+    "- NEVER fabricate, guess, or invent ANY reference information\n"
+    "- NEVER use example data from this prompt - extract ONLY from provided text\n"
+    "- Contact information MUST be taken verbatim from the text - NEVER generate emails/phones\n"
+    "- If contact info is missing for a reference, include the reference with contact as empty string\n"
+    "- Preserve exact names and titles as written in the source text\n"
+    "- If NO explicit references are found in the text, return: {\"references\": []}\n"
+    "- Output must be valid JSON with no markdown, code blocks, or extra commentary\n"
 )
 
 
 
     # Extract relevant context
-    user_prompt = f"Here is the information you have about {name}: {state.get('context', '')}"
+    user_prompt = (
+        f"Extract ONLY explicitly stated professional or academic references from this text. "
+        f"Do NOT treat mentioned colleagues, supervisors, or professors as references unless they are "
+        f"EXPLICITLY identified as references:\n\n"
+        f"---TEXT START---\n{state.get('context', '')}\n---TEXT END---"
+    )
 
     # Call the LLM
     msg = invoke(system_prompt=system_prompt, user_prompt=user_prompt)

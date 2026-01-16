@@ -5,7 +5,7 @@ from openai import OpenAI
 from typing_extensions import TypedDict
 
 
-#some variables
+# Agent for extracting courses and certifications from user input
 
 
 class State(TypedDict):
@@ -55,37 +55,49 @@ def get_courses_certifications(state: State) -> dict:
 
     name = (state.get("name") or "The user").strip()
     system_prompt = (
-    "You are an assistant specialized in summarizing relevant academic or professional courses or certificates. "
-    "Given the available user information, identify and return their notable completed or ongoing courses or certifications "
-    "as a JSON object ONLY (no markdown, no commentary, no extra text) with this structure:\n\n"
+    "You are an expert information extraction specialist focused on identifying courses, certifications, "
+    "and professional development from unstructured text.\n\n"
+
+    "## EXTRACTION PROCESS\n"
+    "1. Scan for course-related keywords: 'course', 'certification', 'certificate', 'completed', 'certified', "
+    "'training', 'bootcamp', 'workshop', 'online course'\n"
+    "2. Look for platform names: Coursera, edX, Udemy, LinkedIn Learning, AWS, Google, etc.\n"
+    "3. Identify certification bodies or issuing organizations\n"
+    "4. Extract completion dates or validity periods if mentioned\n"
+    "5. Note any specific skills or knowledge areas covered\n"
+    "6. Distinguish between: online courses, professional certifications, workshops, bootcamps\n\n"
+
+    "## OUTPUT FORMAT\n"
+    "Return ONLY a valid JSON object:\n"
     "{\n"
     '  "courses_and_certifications": [\n'
     "    {\n"
-    '      "date": "2023",\n'
-    '      "course_or_certificate": "Machine Learning on Coursera",\n'
-    '      "description": "Completed a foundational course on supervised and unsupervised learning techniques."\n'
-    "    },\n"
-    "    {\n"
-    '      "date": "2022",\n'
-    '      "course_or_certificate": "Advanced Python Programming on edX",\n'
-    '      "description": "Enhanced Python development skills for scalable software applications."\n'
+    '      "date": "<year or date range>",\n'
+    '      "course_or_certificate": "<Course/Certification Name and Platform/Issuer>",\n'
+    '      "description": "<first-person description of what was learned or certified>"\n'
     "    }\n"
     "  ]\n"
     "}\n\n"
-    "Rules:\n"
-    "- Always return a valid JSON object and nothing else.\n"
-    "- The root key must be 'courses_and_certifications'.\n"
-    "- Each entry must include 'date', 'course_or_certificate', and 'description'.\n"
-    "- Use realistic dates (e.g., '2023', '2023–2024').\n"
-    "- do not use example course names or descriptions.\n"
-    "- Each description must be one concise, factual sentence.\n"
-    "- Do not include markdown, commentary, or placeholders like 'unknown' or 'N/A'.\n"
-    "- If no courses or certifications are mentioned, return:\n"
-    "{ \"courses_and_certifications\": [{ \"message\": \"No relevant courses or certifications could be generated.\" }] }"
+
+    "## STRICT RULES\n"
+    "- ALWAYS write descriptions in FIRST PERSON (e.g., 'I learned...', 'I completed...', 'I gained expertise in...')\n"
+    "- NEVER use third person (e.g., 'He/She learned...', 'The candidate completed...')\n"
+    "- ONLY extract courses/certifications that are EXPLICITLY mentioned in the text\n"
+    "- NEVER fabricate, assume, or hallucinate courses not present in the source\n"
+    "- NEVER use example data from this prompt - extract ONLY from provided text\n"
+    "- Do NOT confuse formal education (degrees) with courses - degrees belong elsewhere\n"
+    "- If a date is not mentioned, omit the date field or use 'N/A' sparingly\n"
+    "- Keep descriptions factual based on what's stated about the course content\n"
+    "- If NO courses or certifications are found in the text, return: {\"courses_and_certifications\": []}\n"
+    "- Output must be valid JSON with no markdown, code blocks, or extra commentary\n"
 )
 
 
-    user_prompt = f"Here is the information you have: {state.get('context', '')}"
+    user_prompt = (
+        f"Extract all courses, certifications, and professional training from this text. "
+        f"Include ONLY courses/certifications that are explicitly mentioned:\n\n"
+        f"---TEXT START---\n{state.get('context', '')}\n---TEXT END---"
+    )
 
     msg = invoke(system_prompt=system_prompt, user_prompt=user_prompt)
     courses_text = msg.strip() if msg else ""

@@ -55,12 +55,14 @@ class ResumeJsonView(APIView):
         user_input = request.data.get("user_input", "")
         if not user_input:
             return Response({"error": "Missing user_input"}, status=400)
+        normalized_data = parse_resume_input(user_input)
         resume_json = ResumeJson.objects.create(
                 user=request.user,
                 json_input=normalized_data
         )
-        normalized_data = parse_resume_input(user_input)
         return Response(normalized_data)
+
+
 
 class ResumePdfFromJsonView(APIView):
     """
@@ -84,6 +86,32 @@ class ResumePdfFromJsonView(APIView):
             response = HttpResponse(pdf_file.read(), content_type='application/pdf')
             response['Content-Disposition'] = f'attachment; filename="resume.pdf"'
             return response
+
+
+class ResumeDataView(APIView):
+    """
+    GET: Retrieve user's saved resume JSON data.
+    POST: Save/update user's resume JSON data.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        resume = ResumeJson.objects.filter(user=request.user).order_by('-id').first()
+        if not resume:
+            return Response({"data": None}, status=200)
+        return Response({"data": resume.json_input}, status=200)
+
+    def post(self, request):
+        json_data = request.data.get("data")
+        if not json_data:
+            return Response({"error": "Missing data"}, status=400)
+
+        # Update existing or create new
+        resume, created = ResumeJson.objects.update_or_create(
+            user=request.user,
+            defaults={"json_input": json_data}
+        )
+        return Response({"message": "Resume saved successfully"}, status=200)
 
 
 

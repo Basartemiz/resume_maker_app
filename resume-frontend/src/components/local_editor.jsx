@@ -1,75 +1,65 @@
 import React, { useEffect, useMemo, useState } from "react";
-import initialJson from "/src/media/user.json"; // one-time seed
-// IMPORTANT: localStorage only — bundled files are read-only at runtime
+// Data comes from localStorage (populated by backend API)
 import CustomSectionEditorSingle from "./customSectionEditor";
 const LS_DATA = "resume_json_v1";
 const LS_ORDER = "resume_section_order_v1";
 
 /* ============ Schema & helpers ============ */
 const defaultData = () => ({
-  name: "Başar Temiz",
-  title: "Computer Engineer",
+  name: "",
+  title: "",
   contacts: {
-    email: "basar.temiz2004@gmail.com",
-    phone: "+90 535 745 09 33",
-    github: "github.com/Basartemiz",
-    linkedin: "linkedin.com/in/basartemiz",
+    email: "",
+    phone: "",
+    github: "",
+    linkedin: "",
     location: null,
   },
   profile: {
-    job_title: "Computer Engineer",
+    job_title: "",
     highest_degree: null,
-    key_skills: ["Python", "Docker", "React", "Django", "Machine Learning"],
-    summary:
-      "Başar Temiz is a computer engineer with expertise in artificial intelligence, data analysis, and scalable software systems. He has developed diverse projects that integrate back-end engineering with machine learning, including Django applications and tools for 3D reconstruction using NeRF and satellite imagery. With a strong educational background from Boğaziçi University and proficiency in technologies such as Python, Docker, and React, Başar focuses on creating impactful solutions that improve user interaction with data, emphasizing teamwork and communication.",
+    key_skills: [],
+    summary: "",
   },
   skills: {
     sections: [
       {
         label: "Technical",
-        items: [
-          "Python",
-          "Docker",
-          "React",
-          "Django",
-          "Machine Learning",
-          "NeRF",
-          "Data Analysis",
-        ],
-        note:
-          "Expert in developing scalable software systems and artificial intelligence applications, integrating backend engineering with various technologies.",
+        items: [],
+        note: "",
       },
       {
         label: "Soft",
-        items: ["Communication", "Teamwork"],
-        note:
-          "Values clear communication and collaborative teamwork, gained through educational and practical experiences.",
+        items: [],
+        note: "",
       },
     ],
   },
   education: [{ education: null, date: null, description: null }],
   experience: [{ position_or_company: null, date: null, description: null }],
-  references: [
-    {
-      name: "Dr. Ayşe Yılmaz",
-      relationship_or_title: "Academic Advisor, Boğaziçi University",
-      contact: "ayse.yilmaz@bogazici.edu.tr",
-    },
-    {
-      name: "Mr. Ali Demir",
-      relationship_or_title: "Project Lead, AI Solutions Inc.",
-      contact: "ali.demir@aisolutions.com",
-    },
-  ],
-  // Custom sections live here; they’re not part of the strict base schema but are allowed:
-  custom_sections: [
-    // example:
-    // { label: "Projects", items: [{ title: "My App", date:"2024", description:"..." }] }
-  ],
+  references: [],
+  custom_sections: [],
 });
 
 // Fallback clone to avoid mutating references
 const clone = (x) => JSON.parse(JSON.stringify(x));
+
+// Word count helper - counts all text in the resume
+const MAX_WORDS = 10000;
+
+const countWords = (obj) => {
+  if (!obj) return 0;
+  if (typeof obj === 'string') {
+    return obj.trim().split(/\s+/).filter(w => w.length > 0).length;
+  }
+  if (Array.isArray(obj)) {
+    return obj.reduce((sum, item) => sum + countWords(item), 0);
+  }
+  if (typeof obj === 'object') {
+    return Object.values(obj).reduce((sum, val) => sum + countWords(val), 0);
+  }
+  return 0;
+};
 
 const ensureShape = (raw) => {
   // Merge loaded raw into the expected base structure while preserving raw values
@@ -344,18 +334,21 @@ function ReferencesEditor({ data, setData }) {
 
 /* ============ Main Editor with Section Ordering ============ */
 export default function ResumeLocalEditor({ title = "Resume JSON Editor (Local Only)" }) {
-  // Load data: prefer localStorage → fallback to initialJson or defaults
-;
+  // Load data: prefer localStorage → fallback to empty defaults
   const [order, setOrder] = useState(defaultOrder());
   const [status, setStatus] = useState("");
-  const [data, setData] = useState(() => ensureShape(initialJson || defaultData()));
+  const [data, setData] = useState(() => ensureShape(defaultData()));
   const [booting, setBooting] = useState(true);
+
+  // Word count
+  const wordCount = useMemo(() => countWords(data), [data]);
+  const isOverLimit = wordCount > MAX_WORDS;
 
   // initial load
   useEffect(() => {
  try {
     const saved = localStorage.getItem(LS_DATA);
-    const parsed = saved ? JSON.parse(saved) : ensureShape(initialJson || defaultData());
+    const parsed = saved ? JSON.parse(saved) : ensureShape(defaultData());
     setData(ensureShape(parsed));
   } catch {
     setData(defaultData());
@@ -368,9 +361,14 @@ export default function ResumeLocalEditor({ title = "Resume JSON Editor (Local O
   }
 }, []);
 
- // autosave (skip during boot)
+ // autosave (skip during boot, skip if over word limit)
  useEffect(() => {
    if (booting || !data) return;
+   const words = countWords(data);
+   if (words > MAX_WORDS) {
+     setStatus("Over word limit!");
+     return;
+   }
    try {
      localStorage.setItem(LS_DATA, JSON.stringify(data));
      setStatus("Saved ✓");
@@ -390,7 +388,7 @@ export default function ResumeLocalEditor({ title = "Resume JSON Editor (Local O
      if (booting) return;
      try {
        const saved = localStorage.getItem(LS_DATA);
-       const parsed = saved ? JSON.parse(saved) : ensureShape(initialJson || defaultData());
+       const parsed = saved ? JSON.parse(saved) : ensureShape(defaultData());
     setData(ensureShape(parsed));
   } finally {
     setBooting(false);
@@ -524,44 +522,53 @@ const renderSection = (secKey) => {
   };
 
   const resetToSeed = () => {
-    const seed = ensureShape(initialJson || defaultData());
+    const seed = ensureShape(defaultData());
     setData(seed);
     setOrder(defaultOrder());
   };
 
   return (
-    <div className="container-fluid p-0">
+    <div className="editor-root">
         { !data ? (<div className="p-3 text-muted">Loading…</div>):
 
      (<>
-     <div className="d-flex align-items-center justify-content-between mb-3">
-        <h5 className="m-0">{title}</h5>
-        <div className="d-flex align-items-center gap-2">
+     <div className="editor-header mb-3">
+        <div className="editor-header-top">
+          <h5 className="editor-title m-0">{title}</h5>
+          <span className={`badge ${isOverLimit ? 'bg-danger' : 'bg-secondary'}`}>
+            {wordCount.toLocaleString()} / {MAX_WORDS.toLocaleString()} words
+          </span>
+        </div>
+        <div className="editor-header-actions">
           <button className="btn btn-sm btn-outline-primary" onClick={addCustomSectionAndFocus}>
-            + Add Custom Section
+            + Custom
           </button>
           <button className="btn btn-sm btn-outline-danger" onClick={resetToSeed}>
-            Reset to Seed
+            Reset
           </button>
-          {status && <span className="text-success small">{status}</span>}
+          {status && <span className="text-success small ms-2">{status}</span>}
         </div>
       </div>
+      {isOverLimit && (
+        <div className="alert alert-danger mb-3">
+          Your resume exceeds the {MAX_WORDS.toLocaleString()} word limit. Please reduce the content to save.
+        </div>
+      )}
 
       {/* Section Order Controller */}
-      <div className="card border-0 shadow-sm mb-3">
-        <div className="card-header bg-white">
-          <strong>Section Order</strong>
-          <span className="text-muted small ms-2">(affects preview layout)</span>
+      <div className="card editor-section-card border-0 shadow-sm mb-3">
+        <div className="card-header editor-section-header bg-white">
+          <strong className="editor-section-label">Section Order</strong>
+          <span className="text-muted small">(drag to reorder)</span>
         </div>
-        <div className="card-body">
+        <div className="card-body p-3">
           {listedSections.map((s, i) => (
-            <div key={s.key} className="d-flex align-items-center justify-content-between border rounded-3 p-2 mb-2 bg-light">
-              <div className="d-flex align-items-center gap-2">
+            <div key={s.key} className="order-item">
+              <div className="order-item-info">
                 <span className="badge text-bg-secondary">{i + 1}</span>
-                <strong>{s.label}</strong>
-                <span className="text-muted small"></span>
+                <span className="order-item-label">{s.label}</span>
               </div>
-              <div className="d-flex gap-2">
+              <div className="order-item-actions">
                 <button className="btn btn-sm btn-outline-secondary" onClick={()=>moveSection(i,-1)}>↑</button>
                 <button className="btn btn-sm btn-outline-secondary" onClick={()=>moveSection(i, 1)}>↓</button>
               </div>
@@ -572,13 +579,10 @@ const renderSection = (secKey) => {
 
       {/* Editor for selected/visible sections in order */}
       {listedSections.map((s, i) => (
-        <div key={`edit-${s.key}`} className="card border-0 shadow-sm mb-3">
-          <div className="card-header bg-white d-flex align-items-center justify-content-between">
-            <div className="d-flex align-items-center gap-2">
-              <span className="badge text-bg-secondary">{i + 1}</span>
-              <strong>{s.label}</strong>
-            </div>
-            <span className="text-muted small"></span>
+        <div key={`edit-${s.key}`} className="card editor-section-card border-0 shadow-sm mb-3">
+          <div className="card-header editor-section-header bg-white">
+            <span className="badge text-bg-secondary">{i + 1}</span>
+            <strong className="editor-section-label">{s.label}</strong>
           </div>
           <div className="card-body">{renderSection(s.key)}</div>
         </div>

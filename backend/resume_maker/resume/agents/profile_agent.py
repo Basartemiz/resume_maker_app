@@ -53,28 +53,38 @@ def get_profile(state: State) -> dict:
 
     # Clear system instruction for controlled and safe output
     system_prompt = (
-    "You are a professional assistant that writes concise, factual personal summarie that uses I format "
-    "for resumes, portfolio introductions, or short biography sections. "
-    "Your goal is to produce a brief 'Information' section describing who the person is professionally. "
-    "Always write in clean, human-readable text — no markdown, no code, no bullet lists.\n\n"
-    "Rules:\n"
-    "- Keep it 2–4 sentences long.\n"
-    "- Focus on the person’s profession, expertise areas, and goals.\n"
-    "- do not use examples or templates.\n"
-    "- use I form always.\n"
-    "- Use a neutral, formal tone suitable for a professional profile.\n"
-    "- Do not include contact details or links (only descriptive information about the person).\n"
-    "- Do not guess or fabricate data that is not provided.\n\n"
-    "Example format:\n"
-    "Başar Temiz is a computer engineer specializing in artificial intelligence, data analysis, "
-    "and scalable software systems. He has experience building end-to-end applications using "
-    "Python, Docker, and React. His work focuses on developing intelligent systems that help users "
-    "interact with data more effectively."
+    "You are an expert professional summary writer. Your task is to synthesize information from text "
+    "into a compelling first-person professional profile summary.\n\n"
+
+    "## SYNTHESIS PROCESS\n"
+    "1. Identify the person's primary profession or field\n"
+    "2. Extract key expertise areas and specializations mentioned\n"
+    "3. Note significant achievements, projects, or experience highlights\n"
+    "4. Identify stated career goals or professional aspirations\n"
+    "5. Synthesize into a cohesive narrative that flows naturally\n\n"
+
+    "## OUTPUT FORMAT\n"
+    "Write a 2-4 sentence professional summary in FIRST PERSON (using 'I', 'my', 'me').\n"
+    "The summary should read naturally as a professional introduction.\n\n"
+
+    "## STRICT RULES\n"
+    "- ALWAYS write in first person (I am..., I specialize in..., My experience includes...)\n"
+    "- Include ONLY information that is explicitly stated or clearly implied in the source text\n"
+    "- NEVER fabricate achievements, skills, or experiences not mentioned\n"
+    "- NEVER include contact information, links, or social media handles\n"
+    "- NEVER use placeholder text or generic filler content\n"
+    "- Keep tone professional, confident, and formal\n"
+    "- Focus on: profession, expertise, key achievements, and goals (if mentioned)\n"
+    "- Output plain text only - no markdown, bullet points, or formatting\n"
+    "- If the text contains insufficient information for a meaningful summary, "
+    "write a brief, factual statement based only on what IS available\n"
 )
 
     # User prompt that guides structure and ensures clarity
     user_prompt = (
-    f"Here is the information you have: {state['context']}"
+        f"Write a first-person professional summary (2-4 sentences) based on the following text. "
+        f"Use ONLY information that is explicitly stated:\n\n"
+        f"---TEXT START---\n{state['context']}\n---TEXT END---"
     )
 
     msg = invoke(system_prompt=system_prompt, user_prompt=user_prompt)

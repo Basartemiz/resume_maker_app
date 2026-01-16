@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from langgraph.graph import StateGraph, START, END
 from ..agents import (
-    skills_agent, education_agent, 
-    experience_agent, 
-    references_agent, 
-    personal_information_agent, profile_agent, 
-    courses_agent)
+    skills_agent, education_agent,
+    experience_agent,
+    references_agent,
+    personal_information_agent, profile_agent,
+    courses_agent, name_agent)
 import os
+import re
 from dotenv import load_dotenv
 from openai import OpenAI
 from typing import TypedDict
@@ -19,24 +20,476 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 #----------functions to make the output---------
 
+# Maximum retries per agent
+MAX_RETRIES = 2
+
 class State(TypedDict):
-    context:str
-    skills:str
-    education:str
-    experience:str
-    references:str
-    personal_info:str
-    profile:str
+    context: str
+    name: str
+    skills: str
+    education: str
+    experience: str
+    references: str
+    personal_info: str
+    profile: str
+    courses: str
+    # Retry counters for each agent
+    retry_name: int
+    retry_personal_info: int
+    retry_profile: int
+    retry_education: int
+    retry_experience: int
+    retry_courses: int
+    retry_skills: int
+    retry_references: int
 
-input_of_user="""
-I’m Başar Temiz, a computer engineer with a strong passion for artificial intelligence, data analysis, and scalable software systems. Over the past few years, I’ve built and deployed several projects that combine back-end engineering with machine learning — from Django web applications and agentic AI tools to 3D reconstruction pipelines using NeRF and satellite imagery. I enjoy designing clean, maintainable architectures and have practical experience with technologies like Python, Docker, React, and LangChain. I earned my bachelor’s degree in Computer Engineering from Boğaziçi University, where I also collaborated on research involving depth estimation and generative AI. Beyond technical skills, I value teamwork and clarity — I’ve led small development groups, documented complex workflows, and communicated results effectively. My goal is to contribute to projects where intelligent systems meet real-world impact, creating tools that help people understand and shape data more intuitively.
 
-You can reach me via LinkedIn at linkedin.com/in/basartemiz, explore my projects on github.com/Basartemiz, or contact me directly at basar.temiz2004@gmail.com or +90 535 745 09 33. I also worked at Baykar as a Software Engineer Intern where I contributed to the development of UAV software systems and collaborated with cross-functional teams to enhance system performance. I have completed several online courses including Machine Learning on Coursera and Advanced Python Programming on edX.
-"""
+# ===== Validation Functions =====
+
+def _is_valid_json(text: str) -> bool:
+    """Check if the text is valid JSON."""
+    if not text or not isinstance(text, str):
+        return False
+    text = text.strip()
+    if not ((text.startswith("{") and text.endswith("}")) or
+            (text.startswith("[") and text.endswith("]"))):
+        return False
+    try:
+        json.loads(text)
+        return True
+    except (json.JSONDecodeError, ValueError):
+        return False
+
+
+def _contains_hallucination_markers(text: str, context: str) -> bool:
+    """
+    Check if the output contains signs of hallucination.
+    Returns True if hallucination is detected.
+    """
+    if not text:
+        return True
+
+    text_lower = text.lower()
+
+    # Check for common hallucination patterns
+    hallucination_patterns = [
+        r'\bexample\.com\b',
+        r'\bjohn\.doe\b',
+        r'\bjane\.doe\b',
+        r'\btest@test\b',
+        r'\bplaceholder\b',
+        r'\blorem ipsum\b',
+        r'\bxxx\b',
+        r'\b123-456-7890\b',
+        r'\b555-\d{4}\b',  # Fake phone numbers
+    ]
+
+    for pattern in hallucination_patterns:
+        if re.search(pattern, text_lower):
+            return True
+
+    return False
+
+
+def _validate_personal_info(output: str, context: str) -> bool:
+    """Validate personal_info agent output."""
+    if not _is_valid_json(output):
+        return False
+
+    try:
+        data = json.loads(output)
+        # Must have profile key
+        if "profile" not in data:
+            return False
+
+        profile = data["profile"]
+        # Empty profile is valid (means no data found)
+        if not profile:
+            return True
+
+        # If profile has data, check for hallucination
+        if _contains_hallucination_markers(output, context):
+            return False
+
+        return True
+    except:
+        return False
+
+
+def _validate_experience(output: str, context: str) -> bool:
+    """Validate experience agent output."""
+    if not _is_valid_json(output):
+        return False
+
+    try:
+        data = json.loads(output)
+        if "experience" not in data:
+            return False
+
+        # Empty array is valid
+        if not data["experience"]:
+            return True
+
+        # Check each experience entry
+        for exp in data["experience"]:
+            if not isinstance(exp, dict):
+                return False
+            # Check for hallucinated data
+            if _contains_hallucination_markers(json.dumps(exp), context):
+                return False
+
+        return True
+    except:
+        return False
+
+
+def _validate_education(output: str, context: str) -> bool:
+    """Validate education agent output."""
+    if not _is_valid_json(output):
+        return False
+
+    try:
+        data = json.loads(output)
+        if "education" not in data:
+            return False
+
+        # Empty array is valid
+        if not data["education"]:
+            return True
+
+        for edu in data["education"]:
+            if not isinstance(edu, dict):
+                return False
+            if _contains_hallucination_markers(json.dumps(edu), context):
+                return False
+
+        return True
+    except:
+        return False
+
+
+def _validate_skills(output: str, context: str) -> bool:
+    """Validate skills agent output."""
+    if not _is_valid_json(output):
+        return False
+
+    try:
+        data = json.loads(output)
+        if "skills" not in data:
+            return False
+
+        # Empty array is valid
+        if not data["skills"]:
+            return True
+
+        for skill_group in data["skills"]:
+            if not isinstance(skill_group, dict):
+                return False
+            if "category" not in skill_group or "skills" not in skill_group:
+                return False
+
+        return True
+    except:
+        return False
+
+
+def _validate_courses(output: str, context: str) -> bool:
+    """Validate courses agent output."""
+    if not _is_valid_json(output):
+        return False
+
+    try:
+        data = json.loads(output)
+        if "courses_and_certifications" not in data:
+            return False
+
+        # Empty array is valid
+        if not data["courses_and_certifications"]:
+            return True
+
+        for course in data["courses_and_certifications"]:
+            if not isinstance(course, dict):
+                return False
+            if _contains_hallucination_markers(json.dumps(course), context):
+                return False
+
+        return True
+    except:
+        return False
+
+
+def _validate_references(output: str, context: str) -> bool:
+    """Validate references agent output."""
+    if not _is_valid_json(output):
+        return False
+
+    try:
+        data = json.loads(output)
+        if "references" not in data:
+            return False
+
+        # Empty array is valid
+        if not data["references"]:
+            return True
+
+        for ref in data["references"]:
+            if not isinstance(ref, dict):
+                return False
+            # References are very sensitive - check for hallucination
+            if _contains_hallucination_markers(json.dumps(ref), context):
+                return False
+
+        return True
+    except:
+        return False
+
+
+def _validate_profile(output: str, context: str) -> bool:
+    """Validate profile agent output (plain text, not JSON)."""
+    if not output or not isinstance(output, str):
+        return False
+
+    output = output.strip()
+
+    # Profile should be plain text, not JSON
+    if output.startswith("{") or output.startswith("["):
+        return False
+
+    # Should have some content
+    if len(output) < 20:
+        return False
+
+    # Check for hallucination markers
+    if _contains_hallucination_markers(output, context):
+        return False
+
+    return True
+
+
+def _validate_name(output: str, context: str) -> bool:
+    """Validate name agent output."""
+    if not _is_valid_json(output):
+        return False
+
+    try:
+        data = json.loads(output)
+        if "name" not in data:
+            return False
+
+        name = data["name"]
+        # Empty name is valid (means no name found)
+        if not name:
+            return True
+
+        # Name should be a non-empty string
+        if not isinstance(name, str):
+            return False
+
+        # Check for hallucination markers
+        if _contains_hallucination_markers(name, context):
+            return False
+
+        return True
+    except:
+        return False
+
+
+# ===== Wrapper Nodes with Validation and Retry =====
+
+def get_name_with_retry(state: State) -> dict:
+    """Wrapper for name agent with validation and retry."""
+    retry_count = state.get("retry_name", 0)
+
+    result = name_agent.get_name(state)
+    output = result.get("name", "")
+
+    if _validate_name(output, state["context"]):
+        return {"name": output, "retry_name": 0}
+    else:
+        # Invalid output - increment retry counter
+        if retry_count < MAX_RETRIES:
+            return {"name": "", "retry_name": retry_count + 1}
+        else:
+            # Max retries reached - return empty valid JSON
+            return {"name": '{"name": ""}', "retry_name": 0}
+
+
+def get_personal_info_with_retry(state: State) -> dict:
+    """Wrapper for personal_info agent with validation and retry."""
+    retry_count = state.get("retry_personal_info", 0)
+
+    result = personal_information_agent.get_personal_info(state)
+    output = result.get("personal_info", "")
+
+    if _validate_personal_info(output, state["context"]):
+        return {"personal_info": output, "retry_personal_info": 0}
+    else:
+        # Invalid output - increment retry counter
+        if retry_count < MAX_RETRIES:
+            return {"personal_info": "", "retry_personal_info": retry_count + 1}
+        else:
+            # Max retries reached - return empty valid JSON
+            return {"personal_info": '{"profile": {}}', "retry_personal_info": 0}
+
+
+def get_profile_with_retry(state: State) -> dict:
+    """Wrapper for profile agent with validation and retry."""
+    retry_count = state.get("retry_profile", 0)
+
+    result = profile_agent.get_profile(state)
+    output = result.get("profile", "")
+
+    if _validate_profile(output, state["context"]):
+        return {"profile": output, "retry_profile": 0}
+    else:
+        if retry_count < MAX_RETRIES:
+            return {"profile": "", "retry_profile": retry_count + 1}
+        else:
+            return {"profile": "Professional summary not available.", "retry_profile": 0}
+
+
+def get_education_with_retry(state: State) -> dict:
+    """Wrapper for education agent with validation and retry."""
+    retry_count = state.get("retry_education", 0)
+
+    result = education_agent.get_education(state)
+    output = result.get("education", "")
+
+    if _validate_education(output, state["context"]):
+        return {"education": output, "retry_education": 0}
+    else:
+        if retry_count < MAX_RETRIES:
+            return {"education": "", "retry_education": retry_count + 1}
+        else:
+            return {"education": '{"education": []}', "retry_education": 0}
+
+
+def get_experience_with_retry(state: State) -> dict:
+    """Wrapper for experience agent with validation and retry."""
+    retry_count = state.get("retry_experience", 0)
+
+    result = experience_agent.get_experience(state)
+    output = result.get("experience", "")
+
+    if _validate_experience(output, state["context"]):
+        return {"experience": output, "retry_experience": 0}
+    else:
+        if retry_count < MAX_RETRIES:
+            return {"experience": "", "retry_experience": retry_count + 1}
+        else:
+            return {"experience": '{"experience": []}', "retry_experience": 0}
+
+
+def get_courses_with_retry(state: State) -> dict:
+    """Wrapper for courses agent with validation and retry."""
+    retry_count = state.get("retry_courses", 0)
+
+    result = courses_agent.get_courses_certifications(state)
+    output = result.get("courses", "")
+
+    if _validate_courses(output, state["context"]):
+        return {"courses": output, "retry_courses": 0}
+    else:
+        if retry_count < MAX_RETRIES:
+            return {"courses": "", "retry_courses": retry_count + 1}
+        else:
+            return {"courses": '{"courses_and_certifications": []}', "retry_courses": 0}
+
+
+def get_skills_with_retry(state: State) -> dict:
+    """Wrapper for skills agent with validation and retry."""
+    retry_count = state.get("retry_skills", 0)
+
+    result = skills_agent.get_skills(state)
+    output = result.get("skills", "")
+
+    if _validate_skills(output, state["context"]):
+        return {"skills": output, "retry_skills": 0}
+    else:
+        if retry_count < MAX_RETRIES:
+            return {"skills": "", "retry_skills": retry_count + 1}
+        else:
+            return {"skills": '{"skills": []}', "retry_skills": 0}
+
+
+def get_references_with_retry(state: State) -> dict:
+    """Wrapper for references agent with validation and retry."""
+    retry_count = state.get("retry_references", 0)
+
+    result = references_agent.get_references(state)
+    output = result.get("references", "")
+
+    if _validate_references(output, state["context"]):
+        return {"references": output, "retry_references": 0}
+    else:
+        if retry_count < MAX_RETRIES:
+            return {"references": "", "retry_references": retry_count + 1}
+        else:
+            return {"references": '{"references": []}', "retry_references": 0}
+
+
+# ===== Conditional Edge Functions =====
+
+def should_retry_name(state: State) -> str:
+    """Decide whether to retry name or proceed."""
+    if state.get("retry_name", 0) > 0 and state.get("retry_name", 0) <= MAX_RETRIES:
+        return "retry_name"
+    return "proceed_to_personal_info"
+
+
+def should_retry_personal_info(state: State) -> str:
+    """Decide whether to retry personal_info or proceed."""
+    if state.get("retry_personal_info", 0) > 0 and state.get("retry_personal_info", 0) <= MAX_RETRIES:
+        return "retry_personal_info"
+    return "proceed_to_profile"
+
+
+def should_retry_profile(state: State) -> str:
+    """Decide whether to retry profile or proceed."""
+    if state.get("retry_profile", 0) > 0 and state.get("retry_profile", 0) <= MAX_RETRIES:
+        return "retry_profile"
+    return "proceed_to_education"
+
+
+def should_retry_education(state: State) -> str:
+    """Decide whether to retry education or proceed."""
+    if state.get("retry_education", 0) > 0 and state.get("retry_education", 0) <= MAX_RETRIES:
+        return "retry_education"
+    return "proceed_to_experience"
+
+
+def should_retry_experience(state: State) -> str:
+    """Decide whether to retry experience or proceed."""
+    if state.get("retry_experience", 0) > 0 and state.get("retry_experience", 0) <= MAX_RETRIES:
+        return "retry_experience"
+    return "proceed_to_courses"
+
+
+def should_retry_courses(state: State) -> str:
+    """Decide whether to retry courses or proceed."""
+    if state.get("retry_courses", 0) > 0 and state.get("retry_courses", 0) <= MAX_RETRIES:
+        return "retry_courses"
+    return "proceed_to_skills"
+
+
+def should_retry_skills(state: State) -> str:
+    """Decide whether to retry skills or proceed."""
+    if state.get("retry_skills", 0) > 0 and state.get("retry_skills", 0) <= MAX_RETRIES:
+        return "retry_skills"
+    return "proceed_to_references"
+
+
+def should_retry_references(state: State) -> str:
+    """Decide whether to retry references or finish."""
+    if state.get("retry_references", 0) > 0 and state.get("retry_references", 0) <= MAX_RETRIES:
+        return "retry_references"
+    return "finish"
+
 def parse(input_of_user: str) -> dict:
     """
     🔹 Purpose:
         Main function to parse user input and generate a structured resume.
+        Includes validation and retry logic for each agent.
 
     🔹 Parameters:
         input_of_user: str - Raw user input containing personal and professional details.
@@ -45,48 +498,122 @@ def parse(input_of_user: str) -> dict:
         dict - Structured resume data including skills, education, experience, references, personal info, and profile.
     """
 
-    # Initialize state with user input
-    initial_state = {"context": input_of_user}
-
-   
-    # Build workflow
+    # Build workflow with retry logic
     workflow = StateGraph(State)
 
-    # Add nodes to our workflow
-    workflow.add_node("get_skills", skills_agent.get_skills)
-    workflow.add_node("get_education", education_agent.get_education)
-    workflow.add_node("get_experience", experience_agent.get_experience)
-    workflow.add_node("get_references", references_agent.get_references)
-    workflow.add_node("get_personal_info", personal_information_agent.get_personal_info)
-    workflow.add_node("get_profile", profile_agent.get_profile)
-    workflow.add_node("get_courses", courses_agent.get_courses_certifications)
+    # Add nodes using wrapper functions with validation
+    workflow.add_node("get_name", get_name_with_retry)
+    workflow.add_node("get_personal_info", get_personal_info_with_retry)
+    workflow.add_node("get_profile", get_profile_with_retry)
+    workflow.add_node("get_education", get_education_with_retry)
+    workflow.add_node("get_experience", get_experience_with_retry)
+    workflow.add_node("get_courses", get_courses_with_retry)
+    workflow.add_node("get_skills", get_skills_with_retry)
+    workflow.add_node("get_references", get_references_with_retry)
 
-    # Add edges to connect nodes
-    workflow.add_edge(START, "get_personal_info")
-    workflow.add_edge("get_personal_info", "get_profile")
-    workflow.add_edge("get_profile", "get_education")
-    workflow.add_edge("get_education", "get_experience")
-    workflow.add_edge("get_experience", "get_courses")
-    workflow.add_edge("get_courses", "get_skills")
-    workflow.add_edge("get_skills", "get_references")
-    workflow.add_edge("get_references", END)
+    # Start -> name (first extract the name)
+    workflow.add_edge(START, "get_name")
 
-    chain=workflow.compile()
+    # name -> conditional (retry or proceed to personal_info)
+    workflow.add_conditional_edges(
+        "get_name",
+        should_retry_name,
+        {
+            "retry_name": "get_name",
+            "proceed_to_personal_info": "get_personal_info"
+        }
+    )
 
-    state=chain.invoke({"context":input_of_user})
-    
+    # personal_info -> conditional (retry or proceed to profile)
+    workflow.add_conditional_edges(
+        "get_personal_info",
+        should_retry_personal_info,
+        {
+            "retry_personal_info": "get_personal_info",
+            "proceed_to_profile": "get_profile"
+        }
+    )
 
+    # profile -> conditional (retry or proceed to education)
+    workflow.add_conditional_edges(
+        "get_profile",
+        should_retry_profile,
+        {
+            "retry_profile": "get_profile",
+            "proceed_to_education": "get_education"
+        }
+    )
+
+    # education -> conditional (retry or proceed to experience)
+    workflow.add_conditional_edges(
+        "get_education",
+        should_retry_education,
+        {
+            "retry_education": "get_education",
+            "proceed_to_experience": "get_experience"
+        }
+    )
+
+    # experience -> conditional (retry or proceed to courses)
+    workflow.add_conditional_edges(
+        "get_experience",
+        should_retry_experience,
+        {
+            "retry_experience": "get_experience",
+            "proceed_to_courses": "get_courses"
+        }
+    )
+
+    # courses -> conditional (retry or proceed to skills)
+    workflow.add_conditional_edges(
+        "get_courses",
+        should_retry_courses,
+        {
+            "retry_courses": "get_courses",
+            "proceed_to_skills": "get_skills"
+        }
+    )
+
+    # skills -> conditional (retry or proceed to references)
+    workflow.add_conditional_edges(
+        "get_skills",
+        should_retry_skills,
+        {
+            "retry_skills": "get_skills",
+            "proceed_to_references": "get_references"
+        }
+    )
+
+    # references -> conditional (retry or finish)
+    workflow.add_conditional_edges(
+        "get_references",
+        should_retry_references,
+        {
+            "retry_references": "get_references",
+            "finish": END
+        }
+    )
+
+    chain = workflow.compile()
+
+    # Initialize state with user input and zero retry counters
+    initial_state = {
+        "context": input_of_user,
+        "retry_name": 0,
+        "retry_personal_info": 0,
+        "retry_profile": 0,
+        "retry_education": 0,
+        "retry_experience": 0,
+        "retry_courses": 0,
+        "retry_skills": 0,
+        "retry_references": 0,
+    }
+
+    state = chain.invoke(initial_state)
 
     return state
 
-#----------functions to make the output---------
-# render_from_raw_dict.py
-
-
-
-raw_dict = {'context': '\nI’m Başar Temiz, a computer engineer with a strong passion for artificial intelligence, data analysis, and scalable software systems. Over the past few years, I’ve built and deployed several projects that combine back-end engineering with machine learning — from Django web applications and agentic AI tools to 3D reconstruction pipelines using NeRF and satellite imagery. I enjoy designing clean, maintainable architectures and have practical experience with technologies like Python, Docker, React, and LangChain. I earned my bachelor’s degree in Computer Engineering from Boğaziçi University, where I also collaborated on research involving depth estimation and generative AI. Beyond technical skills, I value teamwork and clarity — I’ve led small development groups, documented complex workflows, and communicated results effectively. My goal is to contribute to projects where intelligent systems meet real-world impact, creating tools that help people understand and shape data more intuitively.\n\nYou can reach me via LinkedIn at linkedin.com/in/basartemiz, explore my projects on github.com/Basartemiz, or contact me directly at basar.temiz2004@gmail.com or +90 535 745 09 33. I also worked at Baykar as a Software Engineer Intern where I contributed to the development of UAV software systems and collaborated with cross-functional teams to enhance system performance. I have completed several online courses including Machine Learning on Coursera and Advanced Python Programming on edX.\n', 'skills': '{\n  "skills": [\n    {\n      "category": "Technical",\n      "skills": ["Python", "Docker", "React", "Django", "LangChain", "Machine Learning"],\n      "explanation": "Proficient in developing scalable software systems and implementing machine learning solutions."\n    },\n    {\n      "category": "Analytical",\n      "skills": ["Data Analysis", "Depth Estimation", "Generative AI"],\n      "explanation": "Experienced in analyzing data and developing AI tools for real-world applications."\n    },\n    {\n      "category": "Soft",\n      "skills": ["Teamwork", "Communication"],\n      "explanation": "Strong collaboration and communication skills developed through internships and project leadership."\n    },\n    {\n      "category": "Creative",\n      "skills": ["System Architecture Design"],\n      "explanation": "Skilled in designing clean and maintainable software architectures."\n    }\n  ]\n}', 'education': '{\n  "education": [\n    {\n      "date": "2020–2024",\n      "education": "Bachelor\'s Degree in Computer Engineering at Boğaziçi University",\n      "description": "Collaborated on research involving depth estimation and generative AI."\n    },\n    {\n      "date": "2021",\n      "education": "Machine Learning Course on Coursera",\n      "description": "Completed a foundational course on supervised and unsupervised learning methods."\n    },\n    {\n      "date": "2022",\n      "education": "Advanced Python Programming on edX",\n      "description": "Completed a course focusing on advanced concepts in Python programming."\n    }\n  ]\n}', 'experience': '{\n  "experience": [\n    {\n      "date": "2023–Present",\n      "position_or_company": "Software Engineer Intern at Baykar",\n      "description": "Contributed to the development of UAV software systems and collaborated with cross-functional teams to enhance system performance."\n    },\n    {\n      "date": "2021–2022",\n      "position_or_company": "Research Assistant at Boğaziçi University",\n      "description": "Assisted in research involving depth estimation and generative AI."\n    }\n  ]\n}', 'references': '{\n  "references": [\n    {\n      "name": "Dr. Ayşe Yılmaz",\n      "relationship_or_title": "Academic Advisor, Boğaziçi University",\n      "contact": "ayse.yilmaz@bogazici.edu.tr"\n    },\n    {\n      "name": "Mr. Mehmet Kara",\n      "relationship_or_title": "Software Engineering Supervisor, Baykar",\n      "contact": "mehmet.kara@baykar.com"\n    }\n  ]\n}', 'personal_info': '{\n  "profile": {\n    "name": "Başar",\n    "surname": "Temiz",\n    "position": "Computer Engineer",\n    "description": "Computer engineer specializing in artificial intelligence, scalable software systems, and data-driven development.",\n    "phone_number": "+90 535 745 09 33",\n    "accounts": {\n      "email": "basar.temiz2004@gmail.com",\n      "github": "github.com/Basartemiz",\n      "linkedin": "linkedin.com/in/basartemiz"\n    }\n  }\n}', 'profile': 'Başar Temiz is a computer engineer with expertise in artificial intelligence, data analysis, and scalable software systems. He has developed a range of projects that integrate back-end engineering with machine learning, including Django applications and tools for 3D reconstruction utilizing NeRF and satellite imagery. With a strong educational foundation from Boğaziçi University and practical experience in technologies such as Python, Docker, and React, Başar aims to create impactful solutions that enhance user interaction with data while valuing teamwork and clear communication.'}
-
-# ===== 2) Helpers =====
+# ===== Helper functions for normalization =====
 def _loads(maybe_json: Any) -> Any:
     if isinstance(maybe_json, str):
         s = maybe_json.strip()
@@ -131,11 +658,13 @@ def _collect_key_skills(sections: List[Dict[str, Any]], k: int = 5) -> List[str]
 
 # ===== 3) Normalize raw_dict to what the template expects =====
 def normalize(raw: Dict[str, Any]) -> Dict[str, Any]:
-    skills_json = _loads(raw.get("skills"))
-    edu_json    = _loads(raw.get("education"))
-    exp_json    = _loads(raw.get("experience"))
-    refs_json   = _loads(raw.get("references"))
-    pi_json     = _loads(raw.get("personal_info"))
+    name_json    = _loads(raw.get("name"))
+    skills_json  = _loads(raw.get("skills"))
+    edu_json     = _loads(raw.get("education"))
+    exp_json     = _loads(raw.get("experience"))
+    refs_json    = _loads(raw.get("references"))
+    pi_json      = _loads(raw.get("personal_info"))
+    courses_json = _loads(raw.get("courses"))
 
     # Skills -> sections
     sections = []
@@ -166,6 +695,15 @@ def normalize(raw: Dict[str, Any]) -> Dict[str, Any]:
             "description": it.get("description"),
         } for it in exp_json["experience"]]
 
+    # Courses and Certifications
+    courses_out = None
+    if isinstance(courses_json, dict) and isinstance(courses_json.get("courses_and_certifications"), list):
+        courses_out = [{
+            "course_or_certificate": it.get("course_or_certificate"),
+            "date": it.get("date"),
+            "description": it.get("description"),
+        } for it in courses_json["courses_and_certifications"]]
+
     # References
     references_out = None
     if isinstance(refs_json, dict) and isinstance(refs_json.get("references"), list):
@@ -175,11 +713,18 @@ def normalize(raw: Dict[str, Any]) -> Dict[str, Any]:
             "contact": it.get("contact"),
         } for it in refs_json["references"]]
 
-    # Header name/title + contacts
-    name, title, contacts = None, None, None
+    # Extract name from name_agent (priority) or fallback to personal_info
+    name = None
+    if isinstance(name_json, dict) and name_json.get("name"):
+        name = name_json.get("name")
+
+    # Header name/title + contacts from personal_info
+    title, contacts = None, None
     if isinstance(pi_json, dict) and isinstance(pi_json.get("profile"), dict):
         p = pi_json["profile"]
-        name = " ".join([x for x in [p.get("name"), p.get("surname")] if x]) or None
+        # Use name from name_agent if available, otherwise fallback to personal_info
+        if not name:
+            name = " ".join([x for x in [p.get("name"), p.get("surname")] if x]) or None
         title = p.get("position")
         contacts = _build_contacts(pi_json)
 
@@ -190,18 +735,19 @@ def normalize(raw: Dict[str, Any]) -> Dict[str, Any]:
         "job_title": title,
         "highest_degree": highest_degree,
         "key_skills": key_skills,
-        "summary": raw.get("profile") or None,  # use your provided summary text
+        "summary": raw.get("profile") or None,
     }
 
     # Return context
     ctx = {
-        "name": name or "Başar Temiz",
+        "name": name or "User",
         "title": title,
         "contacts": contacts,
         "profile": profile_obj,
         "skills": skills_out,
         "education": education_out,
         "experience": experience_out,
+        "courses": courses_out,
         "references": references_out,
     }
     # strip empties

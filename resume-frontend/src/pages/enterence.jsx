@@ -1,18 +1,18 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import micIcon from "../assets/mic.png"; // your microphone image
+import micIcon from "../assets/mic.png";
 import { useNavigate } from "react-router-dom";
 import "./entrence.css";
 
 export default function Enterence({
   placeholder = "Type something…",
-  onSubmit,        // optional callback: (value) => void
-  maxLength = 160, // live counter
+  onSubmit,
+  maxLength = 10000,
 }) {
   const [value, setValue] = useState("");
   const [listening, setListening] = useState(false);
   const [error, setError] = useState("");
   const inputRef = useRef(null);
-  const navigate = useNavigate(); // <-- you imported it; now use it
+  const navigate = useNavigate();
 
   // Speech recognition (if available)
   const recognition = useMemo(() => {
@@ -75,10 +75,14 @@ export default function Enterence({
       setTimeout(() => setError(""), 1500);
       return;
     }
-    localStorage.setItem("userInput", trimmed);
+
+    // Save input to localStorage for processing after login
+    localStorage.setItem("pendingUserInput", trimmed);
+
     if (onSubmit) onSubmit(trimmed);
-    navigate("/fill");
-    setValue("");
+
+    // Redirect to login page
+    navigate("/login");
   };
 
   useEffect(() => {
@@ -127,7 +131,7 @@ export default function Enterence({
                   value={value}
                   onChange={(e) => setValue(e.target.value)}
                   placeholder={placeholder || "Write about yourself..."}
-                  maxLength={maxLength + 100} // allow slight overflow but flag it
+                  maxLength={maxLength + 100}
                   rows={5}
                   className={`form-control ${overLimit ? "is-invalid" : ""}`}
                   aria-invalid={overLimit || !!error}
@@ -141,7 +145,6 @@ export default function Enterence({
                     aria-label="Clear text"
                     title="Clear"
                   >
-                    {/* Bootstrap close icon */}
                     <svg
                       width="18"
                       height="18"
@@ -159,7 +162,7 @@ export default function Enterence({
                 )}
                 {overLimit && (
                   <div className="invalid-feedback">
-                    You’ve exceeded the recommended character limit.
+                    You've exceeded the recommended character limit.
                   </div>
                 )}
               </div>
@@ -182,27 +185,26 @@ export default function Enterence({
                 </button>
 
                 <button
-                    type="submit"
-                    className="btn btn-gradient px-4 py-2 fw-semibold d-inline-flex align-items-center justify-content-center gap-2"
-                    >
-                    <span>Send</span>
-                    <svg
-                        width="18"
-                        height="18"
-                        viewBox="0 0 24 24"
-                        aria-hidden="true"
-                        className="ms-0"
-                    >
-                        <path
-                        fill="currentColor"
-                        d="M2.01 21L23 12L2.01 3L2 10l15 2l-15 2z"
-                        />
-                    </svg>
-                    </button>
+                  type="submit"
+                  className="btn btn-gradient px-4 py-2 fw-semibold d-inline-flex align-items-center justify-content-center gap-2"
+                  disabled={overLimit}
+                >
+                  <span>Send</span>
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                    className="ms-0"
+                  >
+                    <path
+                      fill="currentColor"
+                      d="M2.01 21L23 12L2.01 3L2 10l15 2l-15 2z"
+                    />
+                  </svg>
+                </button>
 
-                {/* Spacer grows to push counter right on larger screens */}
                 <div className="flex-grow-1" />
-                {/* Counter */}
                 <span
                   className={`badge ${overLimit ? "text-bg-danger" : "text-bg-secondary"}`}
                   title="Remaining characters"

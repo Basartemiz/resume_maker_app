@@ -106,12 +106,12 @@ export default function StudioSplitPane({
           className={`studio-pane ${mode === "editor" ? "is-active" : ""}`}
           aria-hidden={mode !== "editor"}
         >
-          <div className="card studio-card shadow-sm border-0 h-100">
-            <div className="card-header bg-white d-flex align-items-center justify-content-between">
+          <div className="card studio-card shadow-sm border-0 h-100 d-flex flex-column">
+            <div className="card-header bg-white d-flex align-items-center justify-content-between flex-shrink-0">
               <strong>Editor</strong>
               <span className="text-muted small">Autosaves to localStorage</span>
             </div>
-            <div className="card-body overflow-auto">
+            <div className="card-body studio-editor-body">
               {React.createElement(EditorComponent, { title: editorTitle })}
             </div>
           </div>

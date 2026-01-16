@@ -4,7 +4,7 @@ from langgraph.graph import StateGraph, START, END
 from openai import OpenAI
 from typing_extensions import TypedDict
 
-#some variables
+# Agent for extracting personal information from user input
 
 
 
@@ -39,43 +39,51 @@ def get_personal_info(state: State) -> dict:
     
     # Build a detailed prompt for clarity and control
     system_prompt = (
-    "You are an expert resume writer and professional biographer. "
-    "Your task is to create concise, factual identity and professional summaries. "
-    "Given the available user information, return a JSON object ONLY "
-    "(no markdown, no commentary, no extra text) with this exact structure:\n\n"
+    "You are an expert information extraction specialist. Your task is to carefully analyze unstructured text "
+    "and extract personal and professional identity information with high precision.\n\n"
+
+    "## EXTRACTION PROCESS\n"
+    "1. First, scan the entire text for explicit mentions of: names, job titles, contact info, social profiles\n"
+    "2. Identify contextual clues that indicate professional focus (e.g., 'I work on...', 'specializing in...')\n"
+    "3. Only extract information that is DIRECTLY STATED or STRONGLY IMPLIED by the text\n"
+    "4. If information is ambiguous or missing, OMIT that field entirely from the output\n\n"
+
+    "## OUTPUT FORMAT\n"
+    "Return ONLY a valid JSON object with this structure (omit any field without clear data):\n"
     "{\n"
     '  "profile": {\n'
-    '    "name": "Başar",\n'
-    '    "surname": "Temiz",\n'
-    '    "position": "Computer Engineer",\n'
-    '    "description": "Computer engineer specializing in artificial intelligence, scalable software systems, and data-driven development.",\n'
-    '    "phone_number": "+90 535 745 09 33",\n'
+    '    "name": "<first name>",\n'
+    '    "surname": "<last name>",\n'
+    '    "position": "<professional title>",\n'
+    '    "description": "<one sentence about professional focus>",\n'
+    '    "phone_number": "<phone with country code if present>",\n'
     '    "accounts": {\n'
-    '      "email": "basar.temiz2004@gmail.com",\n'
-    '      "github": "github.com/Basartemiz",\n'
-    '      "linkedin": "linkedin.com/in/basartemiz"\n'
+    '      "email": "<email address>",\n'
+    '      "github": "<github profile URL or username>",\n'
+    '      "linkedin": "<linkedin profile URL or username>"\n'
     '    }\n'
     "  }\n"
     "}\n\n"
-    "Rules:\n"
-    "- Always return a valid JSON object and nothing else.\n"
-    "- The root key must be 'profile'.\n"
-    "- 'name' and 'surname' must contain proper capitalization.\n",
-    "- do not use examples or templates.\n"
-    "- Never fabricate details; only use information provided.\n"
-    "- 'position' must be a concise professional title (e.g., 'Software Engineer', 'Data Scientist').\n"
-    "- 'description' must be one short, factual sentence describing the individual's professional focus.\n"
-    "- 'phone_number' must include country code if available.\n"
-    "- 'accounts' must include relevant verified fields such as email, GitHub, LinkedIn.\n"
-    "- Keep tone formal, neutral, and resume-like.\n"
-    "- Do not include placeholders such as 'unknown' or 'N/A'.\n"
+
+    "## STRICT RULES\n"
+    "- NEVER invent, guess, or hallucinate any information not present in the source text\n"
+    "- NEVER use placeholder values like 'N/A', 'Unknown', 'TBD', or example data\n"
+    "- If a name appears as a full name, split it into 'name' and 'surname' appropriately\n"
+    "- For 'position': derive from stated job title, degree field, or professional self-description\n"
+    "- For 'description': synthesize ONLY from explicitly mentioned skills, expertise, or goals\n"
+    "- Preserve original capitalization for names; use title case for positions\n"
+    "- Include only accounts/contact info that are explicitly provided in the text\n"
+    "- If the text contains no extractable personal information, return: {\"profile\": {}}\n"
+    "- Output must be valid JSON with no markdown formatting, code blocks, or commentary\n"
 )
 
 
 
 
     user_prompt = (
-    f"Here is the information you have: {state['context']}"
+    f"Analyze the following text and extract personal/professional identity information. "
+    f"Extract ONLY what is explicitly stated or clearly implied:\n\n"
+    f"---TEXT START---\n{state['context']}\n---TEXT END---"
     )
 
     msg = invoke(system_prompt=system_prompt, user_prompt=user_prompt)
