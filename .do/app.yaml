@@ -3,6 +3,10 @@ region: fra
 
 services:
   - name: backend
+    github:
+      repo: Basartemiz/resume_maker_app
+      branch: main
+      deploy_on_push: true
     source_dir: /backend/resume_maker
     dockerfile_path: dockerfile
     http_port: 8000
@@ -29,6 +33,10 @@ services:
 
 static_sites:
   - name: frontend
+    github:
+      repo: Basartemiz/resume_maker_app
+      branch: main
+      deploy_on_push: true
     source_dir: /resume-frontend
     build_command: npm ci && npm run build
     output_dir: dist
