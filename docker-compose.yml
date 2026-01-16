@@ -20,10 +20,10 @@ services:
       - "8000"
     environment:
       - DEBUG=False
-      - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
-      - ALLOWED_HOSTS=localhost,127.0.0.1,backend,nginx
+      - SECRET_KEY=${SECRET_KEY:-change-this-secret-key-in-production}
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-localhost,backend,nginx}
       - DATABASE_URL=${DATABASE_URL:-sqlite:///db.sqlite3}
-      - CORS_ALLOWED_ORIGINS=http://localhost,http://127.0.0.1,http://nginx
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost}
     volumes:
       - backend_static:/app/staticfiles
     restart: unless-stopped
@@ -31,14 +31,9 @@ services:
   frontend:
     build:
       context: ./resume-frontend
-      dockerfile: dockerfile.dev
+      dockerfile: dockerfile
     expose:
-      - "3000"
-    environment:
-      - VITE_API_URL=http://localhost
-    volumes:
-      - ./resume-frontend:/app
-      - /app/node_modules
+      - "80"
     restart: unless-stopped
 
 volumes:
