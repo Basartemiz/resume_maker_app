@@ -28,7 +28,7 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 def invoke(system_prompt: str, user_prompt: str):
     resp = client.responses.create(
-    model="gpt-4o-mini",
+    model="gpt-4o",
     input=[
         {"role": "system", "content": f"{system_prompt}"},
         {"role": "user", "content": f"{user_prompt}"},
@@ -80,6 +80,8 @@ def get_education(state: State) -> dict:
     "}\n\n"
     "Rules:\n"
     "- Always return a valid JSON object and nothing else.\n"
+    "- Never fabricate education details; only use information provided.\n"
+    "If the users education is still ongoing, reflect that accurately.\n"
     "- The root key must be 'education'.\n"
     "- Each entry must include 'date', 'education', and 'description'.\n"
     "- Use realistic date ranges (e.g., '2020–2024', '2022', '2018–2020').\n"

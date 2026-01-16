@@ -1,0 +1,31 @@
+.sidebar-classic {
+  background: linear-gradient(180deg, #618cb8 0%, #1c5185 100%);
+  border-right: 1px solid rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(6px);
+  border-radius: 20px;
+  transition: all 0.4s ease-in-out;
+  animation: sidebarGradient 8s ease-in-out infinite alternate;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+/* Gradient animation (subtle vertical flow) */
+@keyframes sidebarGradient {
+  0% {
+    background-position: 0% 0%;
+    background: linear-gradient(180deg, #618cb8 0%, #1c5185 100%);
+  }
+  50% {
+    background-position: 100% 50%;
+    background: linear-gradient(180deg, #709cc7 0%, #163c6b 100%);
+  }
+  100% {
+    background-position: 0% 100%;
+    background: linear-gradient(180deg, #618cb8 0%, #1c5185 100%);
+  }
+}
+
+/* Optional hover enhancement */
+.sidebar-classic:hover {
+  transform: scale(1.01);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+}

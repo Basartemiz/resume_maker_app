@@ -77,6 +77,7 @@ def get_courses_certifications(state: State) -> dict:
     "- The root key must be 'courses_and_certifications'.\n"
     "- Each entry must include 'date', 'course_or_certificate', and 'description'.\n"
     "- Use realistic dates (e.g., '2023', '2023–2024').\n"
+    "- do not use example course names or descriptions.\n"
     "- Each description must be one concise, factual sentence.\n"
     "- Do not include markdown, commentary, or placeholders like 'unknown' or 'N/A'.\n"
     "- If no courses or certifications are mentioned, return:\n"

@@ -5,11 +5,7 @@ from openai import OpenAI
 from typing_extensions import TypedDict
 
 #some variables
-input_of_user="""
-I’m Başar Temiz, a computer engineer with a strong passion for artificial intelligence, data analysis, and scalable software systems. Over the past few years, I’ve built and deployed several projects that combine back-end engineering with machine learning — from Django web applications and agentic AI tools to 3D reconstruction pipelines using NeRF and satellite imagery. I enjoy designing clean, maintainable architectures and have practical experience with technologies like Python, Docker, React, and LangChain. I earned my bachelor’s degree in Computer Engineering from Boğaziçi University, where I also collaborated on research involving depth estimation and generative AI. Beyond technical skills, I value teamwork and clarity — I’ve led small development groups, documented complex workflows, and communicated results effectively. My goal is to contribute to projects where intelligent systems meet real-world impact, creating tools that help people understand and shape data more intuitively.
 
-You can reach me via LinkedIn at linkedin.com/in/basartemiz, explore my projects on github.com/Basartemiz, or contact me directly at basar.temiz2004@gmail.com or +90 535 745 09 33.
-"""
 
 
 class State(TypedDict):
@@ -84,6 +80,7 @@ def get_skills(state: State) -> dict:
     "- Group similar skills together in one list under 'skills'.\n"
     "- Categories can include 'Technical', 'Soft', 'Analytical', 'Creative', etc.\n"
     "- Keep explanations factual and concise (1 sentence each).\n"
+    "- do not give information about the user if not available.\n"
     "- Do not include markdown, commentary, or placeholders like 'unknown'."
 )
 
@@ -97,8 +94,7 @@ def get_skills(state: State) -> dict:
     # Safety fallback
     if not skills_text:
         skills_text = (
-            "Technical;Python, Django, Docker;Experienced in backend development and API design.\n"
-            "Soft;Teamwork, Communication;Effective collaborator in academic and project settings."
+            ""
         )
 
     # Update state

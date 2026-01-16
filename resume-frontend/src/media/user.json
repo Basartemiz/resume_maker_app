@@ -1,0 +1,74 @@
+{
+  "name": "Başar Temiz",
+  "title": "Computer Engineer",
+  "contacts": {
+    "email": "basar.temiz2004@gmail.com",
+    "phone": "+90 535 745 09 33",
+    "github": "github.com/Basartemiz",
+    "linkedin": "linkedin.com/in/basartemiz",
+    "location": null
+  },
+  "profile": {
+    "job_title": "Computer Engineer",
+    "highest_degree": null,
+    "key_skills": [
+      "Python",
+      "Docker",
+      "React",
+      "Django",
+      "Machine Learning"
+    ],
+    "summary": "Başar Temiz is a computer engineer with expertise in artificial intelligence, data analysis, and scalable software systems. He has developed diverse projects that integrate back-end engineering with machine learning, including Django applications and tools for 3D reconstruction using NeRF and satellite imagery. With a strong educational background from Boğaziçi University and proficiency in technologies such as Python, Docker, and React, Başar focuses on creating impactful solutions that improve user interaction with data, emphasizing teamwork and communication."
+  },
+  "skills": {
+    "sections": [
+      {
+        "label": "Technical",
+        "items": [
+          "Python",
+          "Docker",
+          "React",
+          "Django",
+          "Machine Learning",
+          "NeRF",
+          "Data Analysis"
+        ],
+        "note": "Expert in developing scalable software systems and artificial intelligence applications, integrating backend engineering with various technologies."
+      },
+      {
+        "label": "Soft",
+        "items": [
+          "Communication",
+          "Teamwork"
+        ],
+        "note": "Values clear communication and collaborative teamwork, gained through educational and practical experiences."
+      }
+    ]
+  },
+  "education": [
+    {
+      "education": null,
+      "date": null,
+      "description": null
+    }
+  ],
+  "experience": [
+    {
+      "position_or_company": null,
+      "date": null,
+      "description": null
+    }
+  ],
+  "references": [
+    {
+      "name": "Dr. Ayşe Yılmaz",
+      "relationship_or_title": "Academic Advisor, Boğaziçi University",
+      "contact": "ayse.yilmaz@bogazici.edu.tr"
+    },
+    {
+      "name": "Mr. Ali Demir",
+      "relationship_or_title": "Project Lead, AI Solutions Inc.",
+      "contact": "ali.demir@aisolutions.com"
+    }
+  ]
+}
