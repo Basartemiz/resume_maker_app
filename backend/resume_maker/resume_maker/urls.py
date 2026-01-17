@@ -41,13 +41,15 @@ class PublicTokenRefreshView(TokenRefreshView):
 
 
 urlpatterns = [
-    path('api/health/', health_check, name='health_check'),  # Health check for DigitalOcean
+    # Health check - ingress strips /api prefix, so this becomes /health/
+    path('health/', health_check, name='health_check'),
+
     path('admin/', admin.site.urls),
     path('resume/', include('resume.urls')),
 
-    # Public authentication endpoints
-    path('api/token/', PublicTokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('api/token/refresh/', PublicTokenRefreshView.as_view(), name='token_refresh'),
+    # Auth endpoints - ingress strips /api prefix
+    path('token/', PublicTokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('token/refresh/', PublicTokenRefreshView.as_view(), name='token_refresh'),
 
     path('register/', include('register.urls')),
 ]
