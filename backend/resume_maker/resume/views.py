@@ -80,7 +80,14 @@ class ResumePdfFromJsonView(APIView):
         # Create PDF
         template_name = request.data.get("template_name", "harward_style")
         css_name = request.data.get("css_name", "harward")
-        pdf_path = create_pdf(normalized_data, template_name=template_name, css_name=css_name)
+
+        try:
+            pdf_path = create_pdf(normalized_data, template_name=template_name, css_name=css_name)
+        except Exception as e:
+            import traceback
+            print(f"PDF generation error: {e}")
+            print(traceback.format_exc())
+            return Response({"error": f"PDF generation failed: {str(e)}"}, status=500)
 
         with open(pdf_path, 'rb') as pdf_file:
             response = HttpResponse(pdf_file.read(), content_type='application/pdf')
