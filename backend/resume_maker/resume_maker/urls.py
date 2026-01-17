@@ -45,11 +45,14 @@ urlpatterns = [
     path('health/', health_check, name='health_check'),
 
     path('admin/', admin.site.urls),
-    path('resume/', include('resume.urls')),
+
+    # Resume endpoints - ingress strips /resume prefix
+    path('', include('resume.urls')),
 
     # Auth endpoints - ingress strips /api prefix
     path('token/', PublicTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('token/refresh/', PublicTokenRefreshView.as_view(), name='token_refresh'),
 
-    path('register/', include('register.urls')),
+    # Register endpoint - ingress strips /register prefix
+    path('', include('register.urls')),
 ]
