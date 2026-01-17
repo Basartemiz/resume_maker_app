@@ -28,7 +28,9 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-v=3-brq9h7yyyt$yxz38f
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
 
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+# ALLOWED_HOSTS: Allow all hosts since DigitalOcean health checks use internal IPs
+# Security is enforced via CORS_ALLOWED_ORIGINS instead
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
