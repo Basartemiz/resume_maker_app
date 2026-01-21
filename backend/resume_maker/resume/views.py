@@ -8,6 +8,7 @@ import json
 from .utils.parser import parse_resume_input
 from .models import ResumeModel, ResumeJson
 from .templates.template import create_pdf
+from payment.models import Payment
 # Create your views here.
 
 
@@ -67,10 +68,27 @@ class ResumeJsonView(APIView):
 class ResumePdfFromJsonView(APIView):
     """
     POST: Generate a PDF resume from a JSON input.
+    Requires payment verification - payment_id must be provided and valid.
     """
     permission_classes = [IsAuthenticated]
     def post(self, request):
         json_input = request.data.get("json_input", "{}")
+        payment_id = request.data.get("payment_id")
+
+        # Verify payment
+        if not payment_id:
+            return Response({"error": "Payment required. Missing payment_id"}, status=402)
+
+        try:
+            payment = Payment.objects.get(id=payment_id, user=request.user)
+        except Payment.DoesNotExist:
+            return Response({"error": "Payment not found"}, status=404)
+
+        if payment.status != 'succeeded':
+            return Response({"error": "Payment not completed"}, status=402)
+
+        if payment.resume_downloaded:
+            return Response({"error": "Payment already used for download"}, status=400)
 
         try:
             normalized_data = json.loads(json_input)
@@ -88,6 +106,10 @@ class ResumePdfFromJsonView(APIView):
             print(f"PDF generation error: {e}")
             print(traceback.format_exc())
             return Response({"error": f"PDF generation failed: {str(e)}"}, status=500)
+
+        # Mark payment as used
+        payment.resume_downloaded = True
+        payment.save()
 
         with open(pdf_path, 'rb') as pdf_file:
             response = HttpResponse(pdf_file.read(), content_type='application/pdf')

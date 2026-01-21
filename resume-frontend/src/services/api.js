@@ -104,17 +104,21 @@ export async function saveResumeData(data) {
   return res.ok;
 }
 
-export async function generatePdfFromJson(jsonData, templateName = 'harward_style', cssName = 'harward') {
+export async function generatePdfFromJson(jsonData, templateName = 'harward_style', cssName = 'harward', paymentId = null) {
   const res = await authFetch(`${API_BASE}/resume/get_pdf_from_json/`, {
     method: 'POST',
     body: JSON.stringify({
       json_input: JSON.stringify(jsonData),
       template_name: templateName,
-      css_name: cssName
+      css_name: cssName,
+      payment_id: paymentId
     })
   });
 
-  if (!res.ok) return null;
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ error: 'PDF generation failed' }));
+    throw new Error(error.error || 'PDF generation failed');
+  }
   return await res.blob();
 }
 

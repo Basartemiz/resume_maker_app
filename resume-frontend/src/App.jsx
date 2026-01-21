@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import { PaymentProvider, PaymentModal } from "./payment";
 import Enterence from "./pages/enterence.jsx";
 import TemplateStudio from "./pages/fill_form.jsx";
 import Login from "./pages/Login.jsx";
@@ -43,7 +44,10 @@ function AppRoutes() {
 export default function App() {
   return (
     <AuthProvider>
-      <AppRoutes />
+      <PaymentProvider>
+        <AppRoutes />
+        <PaymentModal />
+      </PaymentProvider>
     </AuthProvider>
   );
 }

@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import nunjucks from "nunjucks";
 import SidebarLayout from "../components/sidebar";
 import StudioSplitPane from "../components/Studio";
 import ResumeLocalEditor from "../components/local_editor";
 import { fetchResumeData, saveResumeData, generatePdfFromJson } from "../services/api";
+import { usePayment } from "../payment";
 import "./fill_form.css";
 
 // Empty default data structure - actual data comes from backend
@@ -80,6 +81,7 @@ export default function TemplateStudio() {
   const iframeRef = useRef(null);
   const [saving, setSaving] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
+  const { openPaymentModal } = usePayment();
 
   // Load JSON data (resume info)
   const [data, setData] = useState(() => {
@@ -289,13 +291,13 @@ const handleSaveAndApply = async () => {
   window.setTimeout(() => setAppliedMsg(""), 2000);
 };
 
-// Download PDF handler
-const handleDownloadPdf = async () => {
+// Download PDF after payment
+const downloadPdfWithPayment = useCallback(async (paymentId) => {
   setSaving(true);
   setAppliedMsg("Generating PDF...");
 
   try {
-    const blob = await generatePdfFromJson(data, selectedKey);
+    const blob = await generatePdfFromJson(data, selectedKey, selectedKey, paymentId);
     if (blob) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -309,11 +311,16 @@ const handleDownloadPdf = async () => {
     }
   } catch (err) {
     console.error("PDF error:", err);
-    setAppliedMsg("PDF error");
+    setAppliedMsg(err.message || "PDF error");
   }
 
   setSaving(false);
   window.setTimeout(() => setAppliedMsg(""), 2000);
+}, [data, selectedKey]);
+
+// Download PDF handler - opens payment modal first
+const handleDownloadPdf = () => {
+  openPaymentModal(downloadPdfWithPayment);
 };
 
 
