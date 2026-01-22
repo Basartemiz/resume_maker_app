@@ -18,6 +18,10 @@ export default function PaymentModal() {
       setError(null);
       createPaymentIntent()
         .then((data) => {
+          console.log('Payment intent response:', data);
+          if (!data.client_secret || !data.client_secret.includes('_secret_')) {
+            throw new Error('Invalid client secret received from server');
+          }
           setClientSecret(data.client_secret);
           setPaymentId(data.payment_id);
           setLoading(false);

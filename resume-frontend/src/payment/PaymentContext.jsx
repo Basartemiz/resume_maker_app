@@ -13,8 +13,11 @@ export function PaymentProvider({ children }) {
     async function loadStripeConfig() {
       try {
         const config = await getPaymentConfig();
-        if (config?.publishable_key) {
-          setStripePromise(loadStripe(config.publishable_key));
+        const key = config?.publishable_key?.trim();
+        if (key && (key.startsWith('pk_test_') || key.startsWith('pk_live_'))) {
+          setStripePromise(loadStripe(key));
+        } else {
+          console.error('Invalid Stripe publishable key:', key ? 'Key does not start with pk_test_ or pk_live_' : 'Key is empty');
         }
       } catch (err) {
         console.error('Failed to load Stripe config:', err);

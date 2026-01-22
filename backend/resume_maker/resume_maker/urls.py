@@ -56,6 +56,6 @@ urlpatterns = [
     # Register endpoint - ingress strips /register prefix
     path('', include('register.urls')),
 
-    # Payment endpoints - ingress strips /payment prefix
-    path('payment/', include('payment.urls')),
+    # Payment endpoints - ingress strips /payment prefix, so mount at root
+    path('', include('payment.urls')),
 ]
